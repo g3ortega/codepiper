@@ -1,7 +1,7 @@
 {
   "name": "codepiper",
   "version": "0.1.2",
-  "description": "Run AI coding sessions like a pro: multi-provider, policy-guarded, real-time, and recoverable across devices.",
+  "description": "Orchestrate Claude Code and Codex sessions from one control plane: policy-guarded, real-time, and recoverable across devices.",
   "license": "MIT",
   "author": "g3ortega",
   "repository": {
@@ -29,8 +29,12 @@
     "policy",
     "dashboard"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "bin": {
-    "codepiper": "./packages/cli/src/main.ts"
+    "codepiper": "./bin/codepiper"
   },
   "files": [
     "README.md",
@@ -39,6 +43,7 @@
     "LEGAL_NOTICE.md",
     ".env.example",
     "package.json",
+    "bin/codepiper",
     "scripts/postinstall-link-workspaces.mjs",
     "packages/cli/package.json",
     "packages/cli/src/**/*.ts",

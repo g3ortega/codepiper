@@ -19,6 +19,7 @@ const MAX_PACK_SIZE_BYTES = 6 * 1024 * 1024; // 6MB
 const MAX_ENTRY_COUNT = 240;
 
 const REQUIRED_PATHS = [
+  "bin/codepiper",
   "packages/cli/src/main.ts",
   "packages/core/src/index.ts",
   "packages/daemon/src/main.ts",

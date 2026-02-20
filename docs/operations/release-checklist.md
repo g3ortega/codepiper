@@ -127,6 +127,13 @@ Repository settings needed for npm publish job:
 2. Publish job keeps `id-token: write` permission enabled.
 3. Optional protected environment `npm-publish` for manual approval.
 4. Branch protection on `main` with CI required checks.
+5. Do not inject legacy `NODE_AUTH_TOKEN`/`NPM_TOKEN` for this workflow unless intentionally using token-based publish (trusted publishing should run tokenless).
+
+Trusted Publisher mapping for this repo should target:
+
+- Repository: `g3ortega/codepiper`
+- Workflow file: `.github/workflows/release.yml`
+- Environment (if used): `npm-publish`
 
 ## 7) Notes
 
@@ -139,3 +146,24 @@ Repository settings needed for npm publish job:
   - `README.md` platform matrix
   - `docs/operations/faq.md`
   - `docs/operations/production-deployment.md`
+
+## 8) Bun Publish Notes (Manual Fallback)
+
+For local/manual publishes, Bun can publish directly to npm:
+
+```bash
+bun publish --access public --tag latest
+```
+
+Important:
+
+- Bun publish uses npm registry credentials from your environment (`~/.npmrc`, token, OTP flow).
+- Bun publish does **not** replace CI trusted publishing policy controls.
+- Preferred release path remains the GitHub Release workflow + trusted publishing.
+
+## 9) GitHub Packages vs npm Registry
+
+This project publishes to the npm public registry (`https://registry.npmjs.org`), not GitHub Packages (`https://npm.pkg.github.com`).
+
+- Use npm Trusted Publisher for `codepiper` public releases.
+- Only configure GitHub Packages npm settings if you intentionally plan an additional private/org package distribution channel.

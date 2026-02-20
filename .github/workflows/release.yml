@@ -156,7 +156,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
 
       - name: Verify trusted-publishing runtime
         shell: bash
@@ -177,5 +176,18 @@ jobs:
       - name: Packaging guard
         run: bun run pack:check:fast
 
+      - name: Clean npm auth context (trusted publishing)
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "${HOME}/.npmrc"
+          if [[ -n "${NPM_CONFIG_USERCONFIG:-}" ]]; then
+            rm -f "${NPM_CONFIG_USERCONFIG}"
+          fi
+          unset NODE_AUTH_TOKEN || true
+          unset NPM_TOKEN || true
+          unset NPM_CONFIG_USERCONFIG || true
+          unset npm_config_userconfig || true
+
       - name: Publish package
-        run: npm publish --access public --tag "${{ inputs.npm_dist_tag }}"
+        run: npm publish --provenance --access public --tag "${{ inputs.npm_dist_tag }}"
