@@ -123,25 +123,20 @@ git push origin :refs/tags/vX.Y.Z
 
 Repository settings needed for npm publish job:
 
-1. npm package is configured with a **Trusted Publisher** for this repository/workflow.
-2. Publish job keeps `id-token: write` permission enabled.
-3. Optional protected environment `npm-publish` for manual approval.
-4. Branch protection on `main` with CI required checks.
-5. Do not inject legacy `NODE_AUTH_TOKEN`/`NPM_TOKEN` for this workflow unless intentionally using token-based publish (trusted publishing should run tokenless).
-
-Trusted Publisher mapping for this repo should target:
-
-- Repository: `g3ortega/codepiper`
-- Workflow file: `.github/workflows/release.yml`
-- Environment (if used): `npm-publish`
+1. `NPM_TOKEN` secret is configured (repo-level or `npm-publish` environment).
+2. Token has publish permission for `codepiper` (automation/granular write access).
+3. Publish job keeps `id-token: write` permission enabled (for provenance).
+4. Optional protected environment `npm-publish` for manual approval.
+5. Branch protection on `main` with CI required checks.
 
 ## 7) Notes
 
 - Bun is required on the host; npm package does not bundle Bun runtime.
 - Keep `packages/web/dist` healthy in release checks (packaging guard enforces this).
 - Runtime tarballs intentionally exclude demo/example sources (`*.example.ts`, `**/example.ts`, `**/demo.ts`).
-- Trusted publishing runtime must satisfy: Node `>=22.14.0`, npm `>=11.5.1`.
+- Publish job uses `setup-node` + `NODE_AUTH_TOKEN=${{ secrets.NPM_TOKEN }}` and publishes the prebuilt tarball artifact.
 - `pack:smoke` requires npm registry connectivity to resolve package dependencies.
+- If npm publish fails with `ENEEDAUTH`, rotate `NPM_TOKEN` and verify the secret is available to the `npm-publish` environment.
 - If platform support changes, update:
   - `README.md` platform matrix
   - `docs/operations/faq.md`
@@ -158,12 +153,12 @@ bun publish --access public --tag latest
 Important:
 
 - Bun publish uses npm registry credentials from your environment (`~/.npmrc`, token, OTP flow).
-- Bun publish does **not** replace CI trusted publishing policy controls.
-- Preferred release path remains the GitHub Release workflow + trusted publishing.
+- Bun publish does **not** replace CI release controls.
+- Preferred release path remains the GitHub Release workflow (artifact + token auth).
 
 ## 9) GitHub Packages vs npm Registry
 
 This project publishes to the npm public registry (`https://registry.npmjs.org`), not GitHub Packages (`https://npm.pkg.github.com`).
 
-- Use npm Trusted Publisher for `codepiper` public releases.
+- Use npm token auth (`NPM_TOKEN`) for `codepiper` public releases.
 - Only configure GitHub Packages npm settings if you intentionally plan an additional private/org package distribution channel.
