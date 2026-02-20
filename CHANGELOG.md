@@ -6,6 +6,11 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-02-20
+
+### Fixed
+- Normalized npm `bin` path (`bin/codepiper`) to prevent npm publish auto-correction.
+
 ## [0.1.3] - 2026-02-20
 
 ### Fixed
