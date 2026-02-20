@@ -1,0 +1,40 @@
+name: "Sequential Code Review"
+description: "Developer → Reviewer → Fixer workflow"
+
+env:
+  GLOBAL_VAR: "test"
+
+steps:
+  - name: developer
+    type: session
+    provider: claude-code
+    cwd: /tmp/repo
+    prompt: "Implement the login feature"
+    wait:
+      - type: idle_prompt
+        timeout: 300000
+    extract:
+      files:
+        type: regex
+        pattern: "Created file: (.*)"
+
+  - name: reviewer
+    type: session
+    provider: claude-code
+    cwd: /tmp/repo
+    prompt: "Review the following files: ${steps.developer.files}"
+    wait:
+      - type: stop
+    extract:
+      issues:
+        type: jsonpath
+        path: "$.issues"
+
+  - name: fixer
+    type: session
+    provider: claude-code
+    cwd: /tmp/repo
+    prompt: "Fix these issues: ${steps.reviewer.issues}"
+    wait:
+      - type: idle_prompt
+        timeout: 300000

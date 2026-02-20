@@ -1,0 +1,39 @@
+name: "Test and Fix"
+description: "Run tests, fix if failed, rerun"
+
+steps:
+  - name: run-tests
+    type: session
+    provider: claude-code
+    cwd: /tmp/project
+    prompt: "Run all tests with 'bun test'"
+    wait:
+      - type: stop
+    extract:
+      test_status:
+        type: regex
+        pattern: "Tests: (\\d+) passing"
+
+  - name: check-results
+    type: if
+    condition: "${steps.run-tests.test_status} == '0'"
+    then:
+      - name: fix-tests
+        type: session
+        provider: claude-code
+        cwd: /tmp/project
+        prompt: "Fix the failing tests"
+        wait:
+          - type: stop
+
+      - name: rerun-tests
+        type: session
+        provider: claude-code
+        cwd: /tmp/project
+        prompt: "Run tests again"
+        wait:
+          - type: stop
+    else:
+      - name: success
+        type: log
+        message: "All tests passing!"

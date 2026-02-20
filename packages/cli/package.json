@@ -1,0 +1,13 @@
+{
+  "name": "@codepiper/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/main.ts",
+  "types": "./src/main.ts",
+  "dependencies": {
+    "@codepiper/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

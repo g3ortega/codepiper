@@ -1,0 +1,23 @@
+name: "Process Files"
+description: "Process multiple files in sequence"
+
+steps:
+  - name: process-files
+    type: foreach
+    items: "${files}"
+    step:
+      name: process-file
+      type: session
+      provider: claude-code
+      cwd: /tmp/project
+      prompt: "Process file: ${item}"
+      wait:
+        - type: stop
+      extract:
+        result:
+          type: regex
+          pattern: "Result: (.*)"
+
+  - name: summarize
+    type: log
+    message: "All files processed successfully"

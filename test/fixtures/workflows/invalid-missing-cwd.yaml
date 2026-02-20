@@ -1,0 +1,9 @@
+name: "Invalid Workflow - Missing CWD"
+description: "This workflow should fail validation"
+
+steps:
+  - name: broken-step
+    type: session
+    provider: claude-code
+    # Missing required cwd field
+    prompt: "This will fail"

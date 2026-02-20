@@ -1,0 +1,32 @@
+name: "Retry Strategy"
+description: "Demonstrates retry configuration"
+
+steps:
+  - name: flaky-operation
+    type: session
+    provider: claude-code
+    cwd: /tmp/project
+    prompt: "Perform flaky network operation"
+    wait:
+      - type: stop
+        timeout: 30000
+    onError: retry
+    retry:
+      maxAttempts: 3
+      delay: 1000
+    extract:
+      result:
+        type: regex
+        pattern: "Status: (.*)"
+
+  - name: verify
+    type: if
+    condition: "${steps.flaky-operation.result} == 'success'"
+    then:
+      - name: success-log
+        type: log
+        message: "Operation succeeded"
+    else:
+      - name: failure-log
+        type: log
+        message: "Operation failed after retries"

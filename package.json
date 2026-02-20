@@ -1,0 +1,88 @@
+{
+  "name": "codepiper",
+  "version": "0.1.0",
+  "description": "CodePiper — Multi-session CLI orchestrator for Claude Code",
+  "bin": {
+    "codepiper": "./packages/cli/src/main.ts"
+  },
+  "files": [
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "LEGAL_NOTICE.md",
+    ".env.example",
+    "package.json",
+    "packages/cli/package.json",
+    "packages/cli/src/**/*.ts",
+    "!packages/cli/src/**/*.test.ts",
+    "packages/core/package.json",
+    "packages/core/src/**/*.ts",
+    "!packages/core/src/**/*.test.ts",
+    "packages/daemon/package.json",
+    "packages/daemon/src/**/*.ts",
+    "packages/daemon/src/**/*.sql",
+    "!packages/daemon/src/**/*.test.ts",
+    "!packages/daemon/src/**/*.example.ts",
+    "!packages/daemon/src/**/example.ts",
+    "!packages/daemon/src/**/demo.ts",
+    "packages/providers/claude-code/package.json",
+    "packages/providers/claude-code/src/**/*.ts",
+    "!packages/providers/claude-code/src/**/*.test.ts",
+    "packages/web/dist/**"
+  ],
+  "workspaces": [
+    "packages/*",
+    "packages/providers/*"
+  ],
+  "scripts": {
+    "daemon": "bun run packages/daemon/src/main.ts",
+    "daemon:web": "bun run packages/daemon/src/main.ts --web",
+    "build:web": "bun run --cwd packages/web build",
+    "dev:web": "bun run --cwd packages/web dev",
+    "cli": "bun run packages/cli/src/main.ts",
+    "test": "bun test",
+    "test:integration": "bun test --integration",
+    "typecheck": "bunx tsc -b tsconfig.json",
+    "typecheck:strict:daemon": "bunx tsc -p packages/daemon/tsconfig.strict.json --pretty false",
+    "typecheck:strict:provider": "bunx tsc -p packages/providers/claude-code/tsconfig.strict.json --pretty false",
+    "typecheck:strict": "bun run typecheck:strict:daemon && bun run typecheck:strict:provider",
+    "release:smoke": "bash scripts/release-smoke.sh",
+    "bench:ws-transport": "bun run scripts/bench/ws-transport-bench.ts",
+    "bench:ws-transport:artifact": "bun run scripts/bench/ws-transport-bench.ts --json --artifact-dir benchmarks/ws-transport",
+    "bench:ws-transport:bun-pty-prototype": "bun run scripts/bench/ws-transport-bench.ts --bun-pty-prototype",
+    "security:deps": "node scripts/security/check-deps.mjs",
+    "security:secrets": "node scripts/security/check-secrets.mjs",
+    "security:check": "bun run security:secrets && bun run security:deps",
+    "pack:check": "node scripts/check-packaging.mjs",
+    "pack:check:fast": "node scripts/check-packaging.mjs --skip-build",
+    "pack:smoke": "node scripts/pack-runtime-smoke.mjs",
+    "pack:smoke:fast": "node scripts/pack-runtime-smoke.mjs --skip-build",
+    "prepack": "node scripts/check-packaging.mjs --prepack",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run typecheck:strict && bun test",
+    "pre-commit": "bun run lint:fix && bun run typecheck && bun run typecheck:strict && bun test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.2",
+    "@types/bun": "latest",
+    "@types/js-yaml": "^4.0.9",
+    "@types/qrcode": "^1.5.6",
+    "@types/web-push": "^3.6.4",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "bun": ">=1.3.5"
+  },
+  "dependencies": {
+    "@types/micromatch": "^4.0.10",
+    "js-yaml": "^4.1.1",
+    "jsonpath-plus": "^10.3.0",
+    "micromatch": "^4.0.8",
+    "otpauth": "^9.5.0",
+    "qrcode": "^1.5.4",
+    "web-push": "^3.6.7"
+  }
+}

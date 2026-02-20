@@ -1,0 +1,51 @@
+name: "Test and Fix"
+description: "Run tests, fix failures if needed, and rerun tests"
+
+# This workflow demonstrates conditional branching where:
+# 1. Test runner executes all tests
+# 2. If tests fail, fixer agent addresses the issues
+# 3. Tests are run again to verify fixes
+
+steps:
+  - name: run-tests
+    type: session
+    provider: claude-code
+    cwd: ${CWD}
+    prompt: "Run all tests with 'bun test'"
+    wait:
+      - type: stop
+    extract:
+      test_status:
+        type: regex
+        pattern: "Tests: (\\d+) pass"
+      failures:
+        type: regex
+        pattern: "Tests: \\d+ pass, (\\d+) fail"
+
+  - name: check-results
+    type: if
+    condition: "${steps.run-tests.failures} > 0"
+    then:
+      - name: fix-tests
+        type: session
+        provider: claude-code
+        cwd: ${CWD}
+        prompt: "Fix the failing tests identified in the previous run"
+        wait:
+          - type: stop
+
+      - name: rerun-tests
+        type: session
+        provider: claude-code
+        cwd: ${CWD}
+        prompt: "Run tests again to verify fixes with 'bun test'"
+        wait:
+          - type: stop
+        extract:
+          final_status:
+            type: regex
+            pattern: "Tests: (\\d+) pass"
+    else:
+      - name: success
+        type: log
+        message: "All tests passing!"

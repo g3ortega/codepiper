@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+env:
+  NODE_OPTIONS: --max-old-space-size=6144
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Format check
+        run: bun run format:check
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Strict Typecheck
+        run: bun run typecheck:strict
+
+      - name: Test
+        run: bun test
+
+      - name: Web lint
+        run: bun run --cwd packages/web lint
+
+      - name: Build web
+        run: bun run build:web
+
+      - name: Packaging check
+        run: bun run pack:check:fast
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Dependency vulnerability scan
+        run: bun run security:deps
+
+      - name: Secret leak scan
+        run: bun run security:secrets
+
+  compatibility-smoke:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+
+      - name: Platform info
+        run: |
+          uname -s
+          uname -m
+          bun --version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck smoke
+        run: bun run typecheck
+
+      - name: Build web smoke
+        run: bun run build:web
+
+      - name: Package smoke
+        run: bun run pack:check:fast
+
+      - name: CLI help smoke
+        run: bun run cli --help

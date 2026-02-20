@@ -1,0 +1,43 @@
+name: "Parallel Research"
+description: "Research from multiple sources simultaneously"
+
+steps:
+  - name: parallel-research
+    type: parallel
+    waitFor: all
+    steps:
+      - name: research-docs
+        type: session
+        provider: claude-code
+        cwd: /tmp/research
+        prompt: "Research official documentation for ${TOPIC}"
+        wait:
+          - type: stop
+
+      - name: research-code
+        type: session
+        provider: claude-code
+        cwd: /tmp/research
+        prompt: "Analyze existing codebase for ${TOPIC}"
+        wait:
+          - type: stop
+
+      - name: research-community
+        type: session
+        provider: claude-code
+        cwd: /tmp/research
+        prompt: "Find community examples for ${TOPIC}"
+        wait:
+          - type: stop
+
+  - name: synthesize
+    type: session
+    provider: claude-code
+    cwd: /tmp/research
+    prompt: |
+      Synthesize research from:
+      Docs: ${steps.research-docs.result}
+      Code: ${steps.research-code.result}
+      Community: ${steps.research-community.result}
+    wait:
+      - type: stop

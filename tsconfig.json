@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core/tsconfig.json" },
+    { "path": "./packages/daemon/tsconfig.json" },
+    { "path": "./packages/cli/tsconfig.json" },
+    { "path": "./packages/providers/claude-code/tsconfig.json" },
+    { "path": "./packages/web/tsconfig.json" }
+  ]
+}

@@ -1,0 +1,42 @@
+name: "Sequential Code Review"
+description: "Developer writes code, reviewer checks it, fixer applies changes"
+
+# This workflow demonstrates a sequential multi-agent workflow where:
+# 1. Developer agent implements a feature
+# 2. Reviewer agent reviews the code
+# 3. Fixer agent applies any necessary changes
+
+steps:
+  - name: developer
+    type: session
+    provider: claude-code
+    cwd: ${CWD}
+    prompt: "Implement ${FEATURE}"
+    wait:
+      - type: idle_prompt
+        timeout: 300000  # 5 minutes
+    extract:
+      files_created:
+        type: regex
+        pattern: "Created file: (.*)"
+
+  - name: reviewer
+    type: session
+    provider: claude-code
+    cwd: ${CWD}
+    prompt: "Review the code changes and provide feedback"
+    wait:
+      - type: stop
+    extract:
+      review_feedback:
+        type: regex
+        pattern: "FEEDBACK: (.*)"
+
+  - name: fixer
+    type: session
+    provider: claude-code
+    cwd: ${CWD}
+    prompt: "Apply the following review feedback: ${steps.reviewer.review_feedback}"
+    wait:
+      - type: idle_prompt
+        timeout: 300000

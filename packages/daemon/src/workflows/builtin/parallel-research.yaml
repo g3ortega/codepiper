@@ -1,0 +1,62 @@
+name: "Parallel Research"
+description: "Research topic from multiple sources in parallel, then synthesize findings"
+
+# This workflow demonstrates parallel execution where:
+# 1. Three research agents work concurrently on different sources
+# 2. A synthesis agent combines all findings into a comprehensive report
+
+steps:
+  - name: parallel-research
+    type: parallel
+    wait_for: all
+    steps:
+      - name: research-docs
+        type: session
+        provider: claude-code
+        cwd: ${CWD}
+        prompt: "Research official documentation for ${TOPIC}"
+        wait:
+          - type: stop
+        extract:
+          docs_summary:
+            type: regex
+            pattern: "SUMMARY: (.*)"
+
+      - name: research-code
+        type: session
+        provider: claude-code
+        cwd: ${CWD}
+        prompt: "Analyze existing codebase for ${TOPIC} usage patterns"
+        wait:
+          - type: stop
+        extract:
+          code_summary:
+            type: regex
+            pattern: "SUMMARY: (.*)"
+
+      - name: research-community
+        type: session
+        provider: claude-code
+        cwd: ${CWD}
+        prompt: "Find community examples and best practices for ${TOPIC}"
+        wait:
+          - type: stop
+        extract:
+          community_summary:
+            type: regex
+            pattern: "SUMMARY: (.*)"
+
+  - name: synthesize
+    type: session
+    provider: claude-code
+    cwd: ${CWD}
+    prompt: |
+      Synthesize research findings from:
+
+      Documentation: ${steps.research-docs.docs_summary}
+      Code Analysis: ${steps.research-code.code_summary}
+      Community: ${steps.research-community.community_summary}
+
+      Create a comprehensive guide for ${TOPIC}
+    wait:
+      - type: stop
