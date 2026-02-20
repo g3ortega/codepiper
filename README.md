@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo/logo-transparent.png" alt="CodePiper" width="480" />
+  <img src="https://raw.githubusercontent.com/g3ortega/codepiper/main/assets/logo/logo-transparent.png" alt="CodePiper" width="480" />
 </p>
 
 <p align="center">
@@ -507,17 +507,17 @@ bun run check
 - [Claude Code Settings](https://code.claude.com/docs/en/settings)
 - [Bun PTY API](https://bun.com/blog/bun-v1.3.5)
 - [Tmux Manual](https://www.man7.org/linux/man-pages/man1/tmux.1.html)
-- [Documentation Index](docs/README.md)
-- [Provider Capability Matrix](docs/features/provider-capability-matrix.md)
-- [Provider Extensibility Guide](docs/features/provider-extensibility.md)
-- [Production Deployment Guide](docs/operations/production-deployment.md)
-- [Troubleshooting](docs/operations/troubleshooting.md)
-- [FAQ](docs/operations/faq.md)
-- [Release Checklist](docs/operations/release-checklist.md)
-- [Contributing](CONTRIBUTING.md)
-- [Security Policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
-- [TODO](TODO.md)
+- [Documentation Index](https://github.com/g3ortega/codepiper/blob/main/docs/README.md)
+- [Provider Capability Matrix](https://github.com/g3ortega/codepiper/blob/main/docs/features/provider-capability-matrix.md)
+- [Provider Extensibility Guide](https://github.com/g3ortega/codepiper/blob/main/docs/features/provider-extensibility.md)
+- [Production Deployment Guide](https://github.com/g3ortega/codepiper/blob/main/docs/operations/production-deployment.md)
+- [Troubleshooting](https://github.com/g3ortega/codepiper/blob/main/docs/operations/troubleshooting.md)
+- [FAQ](https://github.com/g3ortega/codepiper/blob/main/docs/operations/faq.md)
+- [Release Checklist](https://github.com/g3ortega/codepiper/blob/main/docs/operations/release-checklist.md)
+- [Contributing](https://github.com/g3ortega/codepiper/blob/main/CONTRIBUTING.md)
+- [Security Policy](https://github.com/g3ortega/codepiper/blob/main/SECURITY.md)
+- [Changelog](https://github.com/g3ortega/codepiper/blob/main/CHANGELOG.md)
+- [TODO](https://github.com/g3ortega/codepiper/blob/main/TODO.md)
 
 ## License
 

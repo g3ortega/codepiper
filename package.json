@@ -1,7 +1,34 @@
 {
   "name": "codepiper",
   "version": "0.1.0",
-  "description": "CodePiper — Multi-session CLI orchestrator for Claude Code",
+  "description": "Run AI coding sessions like a pro: multi-provider, policy-guarded, real-time, and recoverable across devices.",
+  "license": "MIT",
+  "author": "g3ortega",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/g3ortega/codepiper.git"
+  },
+  "homepage": "https://github.com/g3ortega/codepiper#readme",
+  "bugs": {
+    "url": "https://github.com/g3ortega/codepiper/issues"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "cli",
+    "coding-agent",
+    "developer-tools",
+    "orchestration",
+    "multi-session",
+    "workflow",
+    "automation",
+    "terminal",
+    "tmux",
+    "claude-code",
+    "codex",
+    "policy",
+    "dashboard"
+  ],
   "bin": {
     "codepiper": "./packages/cli/src/main.ts"
   },
@@ -47,6 +74,9 @@
     "typecheck:strict:daemon": "bunx tsc -p packages/daemon/tsconfig.strict.json --pretty false",
     "typecheck:strict:provider": "bunx tsc -p packages/providers/claude-code/tsconfig.strict.json --pretty false",
     "typecheck:strict": "bun run typecheck:strict:daemon && bun run typecheck:strict:provider",
+    "release:version:patch": "npm version patch",
+    "release:version:minor": "npm version minor",
+    "release:version:major": "npm version major",
     "release:smoke": "bash scripts/release-smoke.sh",
     "bench:ws-transport": "bun run scripts/bench/ws-transport-bench.ts",
     "bench:ws-transport:artifact": "bun run scripts/bench/ws-transport-bench.ts --json --artifact-dir benchmarks/ws-transport",
