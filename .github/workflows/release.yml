@@ -142,7 +142,6 @@ jobs:
     environment: npm-publish
     permissions:
       contents: read
-      id-token: write
     steps:
       - name: Download package artifact
         uses: actions/download-artifact@v4
@@ -150,32 +149,48 @@ jobs:
           name: npm-package
           path: dist
 
-      - name: Setup Node
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+
+      - name: Setup Node (auth preflight)
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          registry-url: "https://registry.npmjs.org"
 
-      - name: Verify npm token presence
+      - name: Verify publish token presence
         shell: bash
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           if [[ -z "${NPM_TOKEN:-}" ]]; then
-            echo "NPM_TOKEN is missing. Set it in repository/environment secrets."
+            echo "NPM_TOKEN is missing. Set it in repository/environment secrets (npm-publish)."
             exit 1
           fi
 
-      - name: Verify npm auth
-        run: npm whoami
+      - name: Prepare npm registry auth
+        shell: bash
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          AUTH_FILE="${RUNNER_TEMP}/npm-auth.npmrc"
+          {
+            echo "registry=https://registry.npmjs.org/"
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
+            echo "always-auth=true"
+          } > "${AUTH_FILE}"
+          echo "NPM_CONFIG_USERCONFIG=${AUTH_FILE}" >> "${GITHUB_ENV}"
+
+      - name: Verify npm registry auth
+        run: npm whoami --registry https://registry.npmjs.org
 
       - name: Publish package artifact
         shell: bash
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           PACKAGE_FILE="$(ls dist/*.tgz | head -n 1)"
@@ -183,4 +198,4 @@ jobs:
             echo "npm package artifact not found under dist/"
             exit 1
           fi
-          npm publish "${PACKAGE_FILE}" --provenance --access public --tag "${{ inputs.npm_dist_tag }}"
+          bun publish "${PACKAGE_FILE}" --registry https://registry.npmjs.org --access public --tag "${{ inputs.npm_dist_tag }}"

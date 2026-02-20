@@ -125,16 +125,16 @@ Repository settings needed for npm publish job:
 
 1. `NPM_TOKEN` secret is configured (repo-level or `npm-publish` environment).
 2. Token has publish permission for `codepiper` (automation/granular write access).
-3. Publish job keeps `id-token: write` permission enabled (for provenance).
-4. Optional protected environment `npm-publish` for manual approval.
-5. Branch protection on `main` with CI required checks.
+3. Optional protected environment `npm-publish` for manual approval.
+4. Branch protection on `main` with CI required checks.
 
 ## 7) Notes
 
 - Bun is required on the host; npm package does not bundle Bun runtime.
 - Keep `packages/web/dist` healthy in release checks (packaging guard enforces this).
 - Runtime tarballs intentionally exclude demo/example sources (`*.example.ts`, `**/example.ts`, `**/demo.ts`).
-- Publish job uses `setup-node` + `NODE_AUTH_TOKEN=${{ secrets.NPM_TOKEN }}` and publishes the prebuilt tarball artifact.
+- Publish job publishes the prebuilt tarball artifact via `bun publish`.
+- CI auth preflight uses `npm whoami` against `https://registry.npmjs.org` before publish.
 - `pack:smoke` requires npm registry connectivity to resolve package dependencies.
 - If npm publish fails with `ENEEDAUTH`, rotate `NPM_TOKEN` and verify the secret is available to the `npm-publish` environment.
 - If platform support changes, update:
@@ -155,6 +155,7 @@ Important:
 - Bun publish uses npm registry credentials from your environment (`~/.npmrc`, token, OTP flow).
 - Bun publish does **not** replace CI release controls.
 - Preferred release path remains the GitHub Release workflow (artifact + token auth).
+- `bunx npm login --registry=https://registry.npmjs.org` is interactive and suitable for local setup, not CI jobs.
 
 ## 9) GitHub Packages vs npm Registry
 
