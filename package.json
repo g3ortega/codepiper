@@ -1,6 +1,6 @@
 {
   "name": "codepiper",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Orchestrate Claude Code and Codex sessions from one control plane: policy-guarded, real-time, and recoverable across devices.",
   "license": "MIT",
   "author": "g3ortega",
