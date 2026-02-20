@@ -133,7 +133,7 @@ Repository settings needed for npm publish job:
 - Bun is required on the host; npm package does not bundle Bun runtime.
 - Keep `packages/web/dist` healthy in release checks (packaging guard enforces this).
 - Runtime tarballs intentionally exclude demo/example sources (`*.example.ts`, `**/example.ts`, `**/demo.ts`).
-- Publish job publishes the prebuilt tarball artifact via `bun publish`.
+- Publish job runs `bun publish` from repo root (same flow as local release), with non-interactive token auth.
 - CI auth preflight uses `npm whoami` against `https://registry.npmjs.org` before publish.
 - `pack:smoke` requires npm registry connectivity to resolve package dependencies.
 - If npm publish fails with `ENEEDAUTH`, rotate `NPM_TOKEN` and verify the secret is available to the `npm-publish` environment.
