@@ -91,7 +91,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PACKAGE_FILE="$(npm pack --silent)"
+          PACK_OUTPUT="$(npm pack --silent)"
+          echo "${PACK_OUTPUT}"
+          PACKAGE_FILE="$(printf '%s\n' "${PACK_OUTPUT}" | tail -n 1 | tr -d '\r')"
+          if [[ -z "${PACKAGE_FILE}" || ! -f "${PACKAGE_FILE}" ]]; then
+            echo "Unable to resolve npm pack output file"
+            exit 1
+          fi
           echo "package_file=${PACKAGE_FILE}" >> "$GITHUB_OUTPUT"
           shasum -a 256 "${PACKAGE_FILE}" > "${PACKAGE_FILE}.sha256"
 
