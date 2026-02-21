@@ -6,6 +6,16 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-21
+
+### Added
+- Added `test:onboarding-smoke` scenario test to validate first-run auth onboarding end-to-end (bootstrap password, MFA setup, and final authenticated state).
+- Added onboarding smoke coverage to release smoke gate to catch onboarding regressions before publishing.
+
+### Fixed
+- Fixed MFA setup screen retry/race behavior that could leave onboarding stuck on “Generating authenticator QR code...”.
+- Improved setup page MFA retry behavior so failed attempts can be retried cleanly without refresh.
+
 ## [0.2.0] - 2026-02-21
 
 ### Added

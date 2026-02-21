@@ -19,6 +19,7 @@ run_step lint
 run_step typecheck
 run_step typecheck:strict
 run_step test
+run_step test:onboarding-smoke
 run_step security:secrets
 run_step build:web
 run_step pack:check:fast

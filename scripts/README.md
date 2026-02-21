@@ -20,6 +20,7 @@ This directory contains test scripts and utilities for the CodePiper project.
 - `e2e-claude-code.ts` - End-to-end Claude Code integration test
 - `e2e.ts` - General end-to-end test
 - `sqlite-eventbus-integration.ts` - SQLite EventBus integration test
+- `onboarding-smoke.ts` - From-scratch auth onboarding smoke (bootstrap password -> login -> MFA setup -> MFA verify)
 
 ## Benchmark Scripts
 

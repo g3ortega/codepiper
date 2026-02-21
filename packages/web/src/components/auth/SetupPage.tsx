@@ -16,10 +16,12 @@ export function SetupPage() {
   const [mfaError, setMfaError] = useState("");
   const [loading, setLoading] = useState(false);
   const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaSetupAttempt, setMfaSetupAttempt] = useState(0);
 
   const retryMfaSetup = () => {
     setMfaError("");
     setQrData(null);
+    setMfaSetupAttempt((attempt) => attempt + 1);
   };
 
   useEffect(() => {
@@ -29,10 +31,11 @@ export function SetupPage() {
   }, [mfaSetupRequired, phase]);
 
   useEffect(() => {
-    if (phase !== "mfa" || qrData || mfaLoading || mfaError) {
+    if (phase !== "mfa" || qrData) {
       return;
     }
 
+    const attempt = mfaSetupAttempt + 1;
     let cancelled = false;
     const startMfaSetup = async () => {
       setMfaLoading(true);
@@ -44,6 +47,7 @@ export function SetupPage() {
         }
       } catch (err: any) {
         if (!cancelled) {
+          console.warn(`[auth] MFA setup attempt ${attempt} failed`, err);
           setMfaError(err.message || "Failed to start MFA setup");
         }
       } finally {
@@ -57,7 +61,7 @@ export function SetupPage() {
     return () => {
       cancelled = true;
     };
-  }, [phase, qrData, mfaLoading, mfaError]);
+  }, [phase, qrData, mfaSetupAttempt]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,6 +1,6 @@
 {
   "name": "codepiper",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Orchestrate Claude Code and Codex sessions from one control plane: policy-guarded, real-time, and recoverable across devices.",
   "license": "MIT",
   "author": "g3ortega",
@@ -74,6 +74,7 @@
     "dev:web": "bun run --cwd packages/web dev",
     "cli": "bun run packages/cli/src/main.ts",
     "test": "bun test",
+    "test:onboarding-smoke": "bun run scripts/tests/onboarding-smoke.ts",
     "test:integration": "bun test --integration",
     "typecheck": "bunx tsc -b tsconfig.json",
     "typecheck:strict:daemon": "bunx tsc -p packages/daemon/tsconfig.strict.json --pretty false",
