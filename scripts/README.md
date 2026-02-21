@@ -37,6 +37,7 @@ This directory contains test scripts and utilities for the CodePiper project.
 - `check-packaging.mjs` - Tarball allowlist/size guard (`bun run pack:check`, `bun run pack:check:fast`)
 - `pack-runtime-smoke.mjs` - Isolated npm tarball install + CLI runtime smoke (`bun run pack:smoke`, `bun run pack:smoke:fast`) (requires npm registry connectivity)
 - `release-smoke.sh` - Full release preflight (format/lint/type/test/security/build/pack checks)
+  - `test:onboarding-smoke` is optional and only runs when `RUN_ONBOARDING_SMOKE=1`.
 
 ## Running Tests
 

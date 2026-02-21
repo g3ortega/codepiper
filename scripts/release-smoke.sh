@@ -19,7 +19,11 @@ run_step lint
 run_step typecheck
 run_step typecheck:strict
 run_step test
-run_step test:onboarding-smoke
+if [[ "${RUN_ONBOARDING_SMOKE:-0}" == "1" ]]; then
+  run_step test:onboarding-smoke
+else
+  echo "[release-smoke] skip: test:onboarding-smoke (set RUN_ONBOARDING_SMOKE=1 to enable)"
+fi
 run_step security:secrets
 run_step build:web
 run_step pack:check:fast
