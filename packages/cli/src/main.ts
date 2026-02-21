@@ -114,7 +114,7 @@ Manage authentication and security settings.
 
 Subcommands:
   status          Show auth configuration status
-  reset-password  Reset the dashboard password
+  reset-password  Reset the dashboard password (or generate one)
   reset-mfa       Disable two-factor authentication
   sessions        List active login sessions
   revoke-all      Revoke all active sessions
@@ -125,6 +125,7 @@ Options:
 Examples:
   codepiper auth status
   codepiper auth reset-password
+  codepiper auth reset-password --generate
   codepiper auth reset-mfa
   codepiper auth sessions
   codepiper auth revoke-all`,

@@ -179,7 +179,7 @@ All endpoints are served on the Unix socket without prefix, and on HTTP with `/a
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/auth/status` | Auth status |
-| `POST` | `/auth/setup` | Initial setup (password step, MFA required next) |
+| `POST` | `/auth/setup` | Initial setup fallback (manual password + MFA required next) |
 | `POST` | `/auth/login` | Login |
 | `POST` | `/auth/logout` | Logout |
 | `POST` | `/auth/password` | Change password |
@@ -191,7 +191,10 @@ All endpoints are served on the Unix socket without prefix, and on HTTP with `/a
 | `POST` | `/auth/cli/reset-mfa` | CLI MFA reset |
 
 Security notes:
-- First-run onboarding is mandatory password + MFA before normal auth sessions are issued.
+- First web daemon start auto-generates a secure bootstrap password if none exists.
+- First-run onboarding is mandatory sign-in with that password + MFA before normal auth sessions are issued.
+- `mfaSetupRequired` is only true when a valid onboarding token cookie is present for that request.
+- CLI password resets re-enter MFA onboarding when MFA is not currently enabled.
 - MFA disable is CLI-only via `/auth/cli/reset-mfa`.
 
 ### Git (9 endpoints, per session)
@@ -277,7 +280,7 @@ Session handling during restart respects `preserveSessions`.
 
 ## Database Schema
 
-SQLite database at `~/.codepiper/codepiper.db` with 19 tables:
+SQLite database at `~/.codepiper/codepiper.db` with 22 tables (plus `schema_migrations` for versioning):
 
 | Table | Purpose |
 |-------|---------|
@@ -299,7 +302,10 @@ SQLite database at `~/.codepiper/codepiper.db` with 19 tables:
 | `env_sets` | Encrypted environment variable sets |
 | `auth_config` | Authentication configuration (password, MFA) |
 | `auth_sessions` | Active authentication sessions |
-| `schema_migrations` | Schema version tracking |
+| `daemon_settings` | Global daemon settings (single row) |
+| `session_notifications` | User-facing notifications from provider events |
+| `session_notification_prefs` | Per-session notification preferences |
+| `push_subscriptions` | Web Push VAPID subscriptions |
 
 ## Usage
 
@@ -324,8 +330,13 @@ CODEPIPER_SOCKET=/tmp/custom.sock bun run packages/daemon/src/main.ts
 | `CODEPIPER_DB_PATH` | `~/.codepiper/codepiper.db` | SQLite database path |
 | `CODEPIPER_WS_PORT` | `9999` | WebSocket TCP port |
 | `CODEPIPER_HTTP_PORT` | `3000` | HTTP port (when `--web`) |
+| `CODEPIPER_ALLOWED_ORIGINS` | _unset_ | Comma-separated allowed origin hostnames for WebSocket + CSRF checks (required for non-localhost access) |
 | `CODEPIPER_FORCE_SECURE_COOKIES` | `0` | Force `Secure` auth cookies (`1`) when behind TLS-terminating proxies |
 | `CODEPIPER_TRUST_PROXY_HEADERS` | `0` | Trust `X-Forwarded-For`/`X-Real-IP` for client IP extraction (`1`) |
+| `CODEPIPER_SECRET` | _auto-generated_ | Hook authentication secret (random hex if unset) |
+| `CODEPIPER_MFA_QR_TIMEOUT_MS` | `8000` | Timeout for MFA QR generation before fallback to manual setup key |
+| `CODEPIPER_API_RATE_LIMIT_MAX` | `300` | Max API requests per rate-limit window (HTTP routes) |
+| `CODEPIPER_API_RATE_LIMIT_WINDOW_MS` | `10000` | Rate-limit sliding window in ms |
 | `CODEPIPER_WS_PTY_PASTE` | `1` | Enable/disable `pty_paste` op (`0` disables) |
 | `CODEPIPER_STT_COMMAND` | _unset_ | Optional speech-to-text command for `/terminal/transcribe` (input file path appended if `{input}` placeholder is not used) |
 | `CODEPIPER_STT_COMMAND_JSON` | _unset_ | JSON array form of STT command (preferred for explicit argv) |

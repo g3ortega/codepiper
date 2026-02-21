@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function LoginPage() {
-  const { login, mfaEnabled } = useAuth();
+  const { login, mfaEnabled, onboardingPending } = useAuth();
   const [password, setPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [showMfa, setShowMfa] = useState(false);
@@ -41,6 +41,11 @@ export function LoginPage() {
           <img src="/icon.svg" alt="CodePiper" className="h-20 mx-auto mb-4" />
           <h1 className="text-2xl font-semibold text-foreground">CodePiper</h1>
           <p className="text-sm text-muted-foreground mt-1">Sign in to continue</p>
+          {onboardingPending && (
+            <p className="text-xs text-muted-foreground mt-2">
+              First-time setup: sign in with your daemon bootstrap password to continue to MFA.
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

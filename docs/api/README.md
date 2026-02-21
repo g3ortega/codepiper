@@ -529,13 +529,16 @@ Unsubscribe:
 - Secret token in `~/.codepiper/secrets.json` (chmod 600)
 
 ### Web Auth Flow (HTTP `/api/*`)
-- `GET /auth/status` returns `setupRequired`, `mfaEnabled`, `mfaSetupRequired`, `authenticated`.
-- First-run onboarding is mandatory password + MFA:
-  1. `POST /auth/setup` sets password and returns `mfaSetupRequired: true`.
-  2. `POST /auth/mfa/setup` returns QR/secret for authenticator enrollment.
-  3. `POST /auth/mfa/verify` completes onboarding and issues the normal auth session.
+- `GET /auth/status` returns `setupRequired`, `mfaEnabled`, `mfaSetupRequired`, `onboardingPending`, `authenticated`.
+- First-run onboarding is mandatory bootstrap-password sign-in + MFA:
+  1. Daemon auto-generates a secure bootstrap password on first web startup when auth is unconfigured.
+  2. `POST /auth/login` with that password returns `mfaSetupRequired: true` and an onboarding cookie.
+  3. `POST /auth/mfa/setup` returns QR/secret for authenticator enrollment.
+  4. `POST /auth/mfa/verify` completes onboarding and issues the normal auth session.
 - During onboarding, no normal auth session is issued until MFA verification succeeds.
 - MFA disable is CLI-only via `POST /auth/cli/reset-mfa` (Unix socket route).
+- CLI password rotation supports generated secrets via `POST /auth/cli/reset-password` with body `{ "generate": true }`.
+- If MFA is not enabled at password-reset time, onboarding is marked pending again before next sign-in.
 
 Cookie security notes:
 - Auth cookies are `HttpOnly` + `SameSite=Strict`.
@@ -543,6 +546,11 @@ Cookie security notes:
 - `CODEPIPER_FORCE_SECURE_COOKIES=1` can force secure cookies behind TLS-terminating proxies.
 - `CODEPIPER_TRUST_PROXY_HEADERS=1` enables trusted proxy header extraction from
   `X-Forwarded-For`/`X-Real-IP` (rate limiting) and `X-Forwarded-Proto`/`Forwarded` (secure-cookie inference).
+
+Origin validation:
+- WebSocket upgrades are gated by `Origin` header — only `localhost` and hostnames in `CODEPIPER_ALLOWED_ORIGINS` are accepted (prevents Cross-Site WebSocket Hijacking).
+- Browser-originated state-changing requests (`POST`/`PUT`/`PATCH`/`DELETE`) on `/api/*` routes are gated by `Origin`/`Referer` — must match the target origin or an allowed hostname (CSRF mitigation).
+- Non-browser clients (no `Origin`/`Referer` header) are not affected.
 
 ### Remote Access (SSH Tunneling)
 ```bash

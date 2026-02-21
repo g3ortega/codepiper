@@ -72,7 +72,7 @@ Yes. This is a core use case:
 
 ### Is MFA required?
 
-Yes for onboarding in web flow: password setup plus MFA setup/verification.
+Yes for onboarding in web flow: sign in with the daemon-generated bootstrap password, then complete MFA setup/verification.
 
 ### Is local API access authenticated?
 
@@ -85,6 +85,17 @@ Use CLI:
 ```bash
 codepiper auth reset-mfa
 ```
+
+### MFA setup stays on “Generating authenticator QR code...”. What should I do?
+
+CodePiper now falls back to a manual setup key when QR rendering fails or times out.  
+Default timeout is `8000ms` and is configurable with:
+
+```bash
+CODEPIPER_MFA_QR_TIMEOUT_MS=8000
+```
+
+If needed, retry setup from the UI or sign in again to refresh onboarding cookies.
 
 ## Notifications
 
@@ -108,6 +119,6 @@ Not directly. Recommended:
 1. keep daemon local (`127.0.0.1`),
 2. front with TLS reverse proxy,
 3. enforce auth + MFA,
-4. keep `CODEPIPER_ALLOWED_ORIGINS` strict.
+4. set `CODEPIPER_ALLOWED_ORIGINS` to exact trusted proxy hostname(s) — this gates WebSocket upgrades and browser-originated mutating API requests.
 
 See `docs/operations/production-deployment.md`.

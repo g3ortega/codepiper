@@ -6,6 +6,7 @@ export interface AuthStatus {
   setupRequired: boolean;
   mfaEnabled: boolean;
   mfaSetupRequired?: boolean;
+  onboardingPending?: boolean;
   authenticated: boolean;
 }
 
@@ -30,7 +31,7 @@ export interface SetupResponse {
 export interface TotpSetupResponse {
   secret: string;
   otpauthUri: string;
-  qrDataUrl: string;
+  qrDataUrl: string | null;
 }
 
 export interface TotpVerifyResponse {
@@ -46,14 +47,33 @@ export interface AuthSession {
   userAgent: string | null;
 }
 
-async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  });
+interface AuthRequestInit extends RequestInit {
+  timeoutMs?: number;
+}
+
+async function authRequest<T>(path: string, init?: AuthRequestInit): Promise<T> {
+  const timeoutMs = init?.timeoutMs ?? 15000;
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(`/api${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`Request to ${path} timed out after ${timeoutMs}ms. Please retry.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
@@ -99,6 +119,7 @@ export const authApi = {
   mfaSetup: () =>
     authRequest<TotpSetupResponse>("/auth/mfa/setup", {
       method: "POST",
+      timeoutMs: 10000,
     }),
 
   mfaVerify: (totpCode: string) =>

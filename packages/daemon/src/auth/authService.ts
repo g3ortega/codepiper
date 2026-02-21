@@ -18,6 +18,8 @@ const ONBOARDING_TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 const TOTP_WINDOW = 1; // ±1 step (90 seconds total)
 const RECOVERY_CODE_COUNT = 8;
 const MIN_PASSWORD_LENGTH = 8;
+const GENERATED_PASSWORD_LENGTH = 24;
+const DEFAULT_MFA_QR_TIMEOUT_MS = 8000;
 
 export interface LoginResult {
   token: string;
@@ -35,7 +37,7 @@ export interface MfaSetupRequiredResult {
 export interface TotpSetupResult {
   secret: string;
   otpauthUri: string;
-  qrDataUrl: string;
+  qrDataUrl: string | null;
 }
 
 export interface TotpVerifyResult {
@@ -44,6 +46,10 @@ export interface TotpVerifyResult {
 
 export interface OnboardingTotpVerifyResult extends TotpVerifyResult {
   token: string;
+}
+
+export interface BootstrapPasswordResult {
+  password: string;
 }
 
 export class AuthService {
@@ -95,6 +101,27 @@ export class AuthService {
       mfaSetupRequired: true,
       onboardingToken: onboarding.rawToken,
     };
+  }
+
+  async initializeBootstrapPassword(): Promise<BootstrapPasswordResult> {
+    if (!this.isSetupRequired()) {
+      throw new AuthError("Password is already configured", "PASSWORD_ALREADY_CONFIGURED");
+    }
+
+    const password = this.generateSecurePassword();
+    const hash = await Bun.password.hash(password, {
+      algorithm: "argon2id",
+      memoryCost: 65536,
+      timeCost: 3,
+    });
+
+    this.db.createAuthConfig(hash, {
+      mfaSetupPending: true,
+      onboardingTokenHash: null,
+      onboardingTokenExpiresAt: null,
+    });
+
+    return { password };
   }
 
   // ─── Login ────────────────────────────────────────────────────────
@@ -269,7 +296,15 @@ export class AuthService {
     });
 
     const otpauthUri = totp.toString();
-    const qrDataUrl = await QRCode.toDataURL(otpauthUri);
+    let qrDataUrl: string | null = null;
+    try {
+      qrDataUrl = await this.withTimeout(QRCode.toDataURL(otpauthUri), this.getQrTimeoutMs());
+    } catch (error) {
+      console.warn(
+        "[auth] QR generation failed or timed out; falling back to manual setup key only:",
+        error
+      );
+    }
 
     // Store pending secret (not persisted until verified)
     this.pendingTotpSecret = secret.base32;
@@ -455,6 +490,70 @@ export class AuthService {
       codes.push(`${raw.slice(0, 4)}-${raw.slice(4, 8)}`);
     }
     return codes;
+  }
+
+  generateSecurePassword(length = GENERATED_PASSWORD_LENGTH): string {
+    const safeLength = Math.max(length, MIN_PASSWORD_LENGTH);
+    const charSets = {
+      upper: "ABCDEFGHJKLMNPQRSTUVWXYZ",
+      lower: "abcdefghijkmnopqrstuvwxyz",
+      digits: "23456789",
+      symbols: "!@#$%^&*_-+=",
+    };
+    const allChars = Object.values(charSets).join("");
+
+    const pickFrom = (set: string): string => set.charAt(crypto.randomInt(0, set.length));
+
+    // Guarantee at least one character from each class
+    const chars: string[] = [
+      pickFrom(charSets.upper),
+      pickFrom(charSets.lower),
+      pickFrom(charSets.digits),
+      pickFrom(charSets.symbols),
+    ];
+
+    for (let i = chars.length; i < safeLength; i++) {
+      chars.push(pickFrom(allChars));
+    }
+
+    // Fisher-Yates shuffle
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = crypto.randomInt(0, i + 1);
+      const tmp = chars[i] ?? "";
+      chars[i] = chars[j] ?? "";
+      chars[j] = tmp;
+    }
+
+    return chars.join("");
+  }
+
+  private getQrTimeoutMs(): number {
+    const raw = process.env.CODEPIPER_MFA_QR_TIMEOUT_MS;
+    if (!raw) {
+      return DEFAULT_MFA_QR_TIMEOUT_MS;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return DEFAULT_MFA_QR_TIMEOUT_MS;
+    }
+    return parsed;
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<never>((_resolve, reject) => {
+          timeoutHandle = setTimeout(
+            () => reject(new Error("QR code generation timed out")),
+            timeoutMs
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
   }
 
   private hashRecoveryCode(code: string): string {

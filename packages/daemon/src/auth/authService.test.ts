@@ -100,6 +100,30 @@ describe("AuthService", () => {
         "at least 8 characters"
       );
     });
+
+    it("initializes first-run bootstrap password with MFA onboarding pending", async () => {
+      const bootstrap = await authService.initializeBootstrapPassword();
+      expect(bootstrap.password.length).toBeGreaterThanOrEqual(8);
+      expect(authService.isSetupRequired()).toBe(false);
+      expect(authService.isMfaSetupPending()).toBe(true);
+
+      const loginResult = await authService.login(
+        bootstrap.password,
+        undefined,
+        "127.0.0.1",
+        "TestAgent"
+      );
+      expect("mfaSetupRequired" in loginResult).toBe(true);
+    });
+
+    it("generates secure passwords with mixed character classes", () => {
+      const password = authService.generateSecurePassword(24);
+      expect(password.length).toBe(24);
+      expect(/[A-Z]/.test(password)).toBe(true);
+      expect(/[a-z]/.test(password)).toBe(true);
+      expect(/[0-9]/.test(password)).toBe(true);
+      expect(/[!@#$%^&*_\-+=]/.test(password)).toBe(true);
+    });
   });
 
   describe("Login", () => {

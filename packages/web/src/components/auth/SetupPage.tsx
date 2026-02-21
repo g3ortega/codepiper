@@ -10,12 +10,17 @@ export function SetupPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
-  const [qrData, setQrData] = useState<{ qrDataUrl: string; secret: string } | null>(null);
+  const [qrData, setQrData] = useState<{ qrDataUrl: string | null; secret: string } | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [mfaError, setMfaError] = useState("");
   const [loading, setLoading] = useState(false);
   const [mfaLoading, setMfaLoading] = useState(false);
+
+  const retryMfaSetup = () => {
+    setMfaError("");
+    setQrData(null);
+  };
 
   useEffect(() => {
     if (mfaSetupRequired && phase === "password") {
@@ -101,19 +106,11 @@ export function SetupPage() {
         <div className="text-center mb-8">
           <img src="/icon.svg" alt="CodePiper" className="h-20 mx-auto mb-4" />
           <h1 className="text-2xl font-semibold text-foreground">CodePiper Setup</h1>
-          {phase === "password" ? (
-            <p className="text-sm text-muted-foreground mt-1">
-              Step 1 of 2: Create your admin password
-            </p>
-          ) : phase === "mfa" ? (
-            <p className="text-sm text-muted-foreground mt-1">
-              Step 2 of 2: MFA is required before first sign-in
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground mt-1">
-              Save your recovery codes, then continue
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground mt-1">
+            {phase === "password" && "Step 1 of 2: Create your admin password"}
+            {phase === "mfa" && "Step 2 of 2: MFA is required before first sign-in"}
+            {phase === "recovery" && "Save your recovery codes, then continue"}
+          </p>
         </div>
 
         {phase === "password" && (
@@ -179,15 +176,45 @@ export function SetupPage() {
               </p>
             )}
 
+            {!(mfaLoading || qrData) && mfaError && (
+              <div className="space-y-3">
+                <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {mfaError}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={retryMfaSetup}
+                    className="w-full py-2 px-4 rounded-md border border-border text-foreground hover:bg-muted transition-colors"
+                  >
+                    Retry setup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void checkAuth()}
+                    className="w-full py-2 px-4 rounded-md border border-border text-foreground hover:bg-muted transition-colors"
+                  >
+                    Back to sign-in
+                  </button>
+                </div>
+              </div>
+            )}
+
             {qrData && (
               <>
                 <p className="text-sm text-muted-foreground">
                   Scan this QR code with your authenticator app (Google Authenticator, Authy,
                   1Password, etc.), then enter the 6-digit code.
                 </p>
-                <div className="flex justify-center">
-                  <img src={qrData.qrDataUrl} alt="MFA setup QR code" className="w-52 h-52" />
-                </div>
+                {qrData.qrDataUrl ? (
+                  <div className="flex justify-center">
+                    <img src={qrData.qrDataUrl} alt="MFA setup QR code" className="w-52 h-52" />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    QR rendering is unavailable in this environment. Use the setup key below.
+                  </p>
+                )}
                 <details>
                   <summary className="text-xs text-muted-foreground cursor-pointer">
                     Can't scan? Enter setup key manually

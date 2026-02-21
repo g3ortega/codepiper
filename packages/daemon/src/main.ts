@@ -372,7 +372,7 @@ async function main() {
   }
 
   // Initialize authentication
-  const { AuthService } = await import("./auth/authService");
+  const { AuthError, AuthService } = await import("./auth/authService");
   const { RateLimiter } = await import("./auth/rateLimiter");
   const { getOrCreateEncryptionKey, getOrCreateHookSecret } = await import("./crypto/encryption");
 
@@ -388,8 +388,30 @@ async function main() {
     console.log(`Cleaned up ${expiredSessions} expired auth session(s)`);
   }
 
-  if (authService.isSetupRequired()) {
-    console.log("Auth: No password configured. Web dashboard will show setup page.");
+  if (authService.isSetupRequired() && cliArgs.web) {
+    try {
+      const bootstrap = await authService.initializeBootstrapPassword();
+      console.log("Auth: Generated first-run bootstrap password for web onboarding.");
+      if (process.stdout.isTTY) {
+        console.log(`Auth: Bootstrap password: ${bootstrap.password}`);
+      } else {
+        console.log(
+          "Auth: Bootstrap password was generated but is not printed because stdout is not a TTY."
+        );
+      }
+      console.log("Auth: Sign in once with this password, then complete mandatory MFA setup.");
+      console.log("Auth: Rotate anytime with `codepiper auth reset-password --generate`.");
+    } catch (error) {
+      // Race guard: another process may have configured the password between the check and now
+      if (!(error instanceof AuthError && error.code === "PASSWORD_ALREADY_CONFIGURED")) {
+        throw error;
+      }
+      console.log("Auth: Password configured. Web dashboard requires login.");
+    }
+  } else if (authService.isSetupRequired()) {
+    console.log(
+      "Auth: No password configured yet. Start with `codepiper daemon --web` to auto-generate a bootstrap password."
+    );
   } else {
     console.log("Auth: Password configured. Web dashboard requires login.");
   }

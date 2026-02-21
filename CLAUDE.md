@@ -45,7 +45,7 @@ packages/
 ### Daemon (`packages/daemon/`)
 
 - **API server**: HTTP over Unix socket (`/tmp/codepiper.sock`) + optional HTTP port for web dashboard
-- **Database**: SQLite via `bun:sqlite` — 19 tables with foreign key constraints
+- **Database**: SQLite via `bun:sqlite` — 22 tables with foreign key constraints
 - **Sessions**: Provider registry with tmux runtime and per-provider capabilities
 - **WebSocket**: Streaming events and terminal output on port 9999
 - **Auth**: Single-user password + TOTP MFA with rate limiting
@@ -130,7 +130,7 @@ See `LEGAL_NOTICE.md` for compliance details.
 
 ## Database Schema (SQLite)
 
-19 tables defined in `packages/daemon/src/db/schema.sql`:
+22 tables defined in `packages/daemon/src/db/schema.sql`:
 
 | Category | Tables |
 |----------|--------|
@@ -140,6 +140,7 @@ See `LEGAL_NOTICE.md` for compliance details.
 | Analytics | `token_usage`, `model_switches`, `transcript_content` |
 | Settings | `workspaces`, `env_sets`, `daemon_settings` |
 | Auth | `auth_config`, `auth_sessions` |
+| Notifications | `session_notifications`, `session_notification_prefs`, `push_subscriptions` |
 
 **Design principle:** Persist first, process later. All state persisted to SQLite before processing.
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { authApi } from "@/lib/auth";
 
 interface MfaSetupDialogProps {
@@ -10,13 +10,13 @@ type Step = "qr" | "verify" | "recovery";
 
 export function MfaSetupDialog({ onClose, onEnabled }: MfaSetupDialogProps) {
   const [step, setStep] = useState<Step>("qr");
-  const [qrData, setQrData] = useState<{ qrDataUrl: string; secret: string } | null>(null);
+  const [qrData, setQrData] = useState<{ qrDataUrl: string | null; secret: string } | null>(null);
   const [totpCode, setTotpCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const startSetup = async () => {
+  const startSetup = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -27,7 +27,7 @@ export function MfaSetupDialog({ onClose, onEnabled }: MfaSetupDialogProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const verifyCode = async () => {
     setLoading(true);
@@ -44,10 +44,11 @@ export function MfaSetupDialog({ onClose, onEnabled }: MfaSetupDialogProps) {
     }
   };
 
-  // Auto-start setup on mount
-  if (!(qrData || loading || error)) {
-    startSetup();
-  }
+  useEffect(() => {
+    if (step === "qr" && !(qrData || loading || error)) {
+      void startSetup();
+    }
+  }, [step, qrData, loading, error, startSetup]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -63,9 +64,15 @@ export function MfaSetupDialog({ onClose, onEnabled }: MfaSetupDialogProps) {
                   1Password, etc.)
                 </p>
 
-                <div className="flex justify-center mb-4">
-                  <img src={qrData.qrDataUrl} alt="TOTP QR Code" className="w-48 h-48" />
-                </div>
+                {qrData.qrDataUrl ? (
+                  <div className="flex justify-center mb-4">
+                    <img src={qrData.qrDataUrl} alt="TOTP QR Code" className="w-48 h-48" />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mb-4 text-center">
+                    QR rendering is unavailable here. Use the manual setup key below.
+                  </p>
+                )}
 
                 <details className="mb-4">
                   <summary className="text-xs text-muted-foreground cursor-pointer">

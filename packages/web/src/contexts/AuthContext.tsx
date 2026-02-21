@@ -15,6 +15,7 @@ interface AuthState {
   setupRequired: boolean;
   mfaEnabled: boolean;
   mfaSetupRequired: boolean;
+  onboardingPending: boolean;
   login: (
     password: string,
     totpCode?: string
@@ -26,14 +27,17 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+const DEFAULT_STATUS: AuthStatus = {
+  setupRequired: false,
+  mfaEnabled: false,
+  mfaSetupRequired: false,
+  onboardingPending: false,
+  authenticated: false,
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
-  const [status, setStatus] = useState<AuthStatus>({
-    setupRequired: false,
-    mfaEnabled: false,
-    mfaSetupRequired: false,
-    authenticated: false,
-  });
+  const [status, setStatus] = useState<AuthStatus>(DEFAULT_STATUS);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -41,12 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus(s);
     } catch {
       // If we can't reach the API, assume not authenticated
-      setStatus({
-        setupRequired: false,
-        mfaEnabled: false,
-        mfaSetupRequired: false,
-        authenticated: false,
-      });
+      setStatus(DEFAULT_STATUS);
     } finally {
       setIsLoading(false);
     }
@@ -68,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ...current,
             setupRequired: false,
             mfaSetupRequired: true,
+            onboardingPending: true,
             authenticated: false,
           }));
           return { mfaSetupRequired: true };
@@ -89,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setupRequired: false,
           mfaEnabled: false,
           mfaSetupRequired: true,
+          onboardingPending: true,
           authenticated: false,
         });
         return { mfaSetupRequired: true };
@@ -115,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setupRequired: status.setupRequired,
       mfaEnabled: status.mfaEnabled,
       mfaSetupRequired: status.mfaSetupRequired ?? false,
+      onboardingPending: status.onboardingPending ?? false,
       login,
       setup,
       logout,

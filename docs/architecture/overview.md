@@ -12,27 +12,38 @@ Use alongside:
 ```text
                       Local machine (single-user control plane)
 --------------------------------------------------------------------------------
-  codepiper CLI                    Web Dashboard (optional --web)
-      |                                       |
-      | Unix socket                           | HTTP /api + WebSocket /ws
-      v                                       v
-                      +-----------------------------------+
-                      |            Daemon                 |
-                      |-----------------------------------|
-                      | API server + auth + CSRF/origin  |
-                      | SessionManager (lifecycle owner) |
-                      | Policy engine + workflow runner   |
-                      | Notification + push dispatcher    |
-                      +-------------------+---------------+
-                                          |
-                +-------------------------+-------------------------+
-                |                                                   |
-                v                                                   v
-         tmux-backed provider runtimes                         SQLite
-         - Claude Code                                          - sessions/events
-         - Codex CLI                                            - policies/audit
-                                                                - workflows
-                                                                - auth/settings
+
+  codepiper CLI                         Web Dashboard (optional --web)
+      |                                          |
+      | Unix socket (trusted local)              | HTTPS (via reverse proxy)
+      | No auth token required                   | or http://127.0.0.1:3000
+      |                                          |
+      v                                          v
+  +----------------------------------------------------------------+
+  |                          Daemon                                |
+  |----------------------------------------------------------------|
+  |                                                                |
+  |  ┌─────────────────────────────────────────────────────────┐   |
+  |  │ Request pipeline (HTTP path only)                       │   |
+  |  │                                                         │   |
+  |  │  WS /ws:  Origin gate ──> Auth ──> upgrade              │   |
+  |  │  /api/*:  CSRF/Origin ──> Auth/MFA ──> Rate limit       │   |
+  |  └─────────────────────────────────────────────────────────┘   |
+  |                                                                |
+  |  SessionManager (lifecycle owner)                              |
+  |  Policy engine + workflow runner                               |
+  |  Notification + push dispatcher                                |
+  |                                                                |
+  +------------------+---------------------------------------------+
+                     |
+      +--------------+--------------+
+      |                             |
+      v                             v
+  tmux-backed providers          SQLite
+  - Claude Code                   - sessions/events
+  - Codex CLI                     - policies/audit
+                                  - workflows
+                                  - auth/settings
 ```
 
 Primary packages:
@@ -44,14 +55,43 @@ Primary packages:
 
 ## 2) Runtime Surfaces
 
-1. `Unix socket` (default: `/tmp/codepiper.sock`)
-- Trusted local control path for CLI and scripts.
+| Surface | Transport | Auth | Security gates | Primary client |
+|---------|-----------|------|----------------|----------------|
+| Unix socket | `/tmp/codepiper.sock` | None (local-user trusted) | Owner-only permissions (`0600`) | CLI, scripts |
+| HTTP | `127.0.0.1:<port>/api/*` | Cookie session + MFA | CSRF/origin check, rate limit | Web dashboard |
+| WebSocket | `127.0.0.1:<port>/ws` | Cookie or `Authorization` | Origin gate (CSWSH prevention) | Web dashboard (PTY stream, events) |
+| WebSocket (standalone) | `127.0.0.1:9999/ws` | Cookie or `Authorization` | Origin gate | Dedicated WS clients |
 
-2. `HTTP + static web` (`--web`)
-- API mounted at `/api/*`, auth/session middleware enforced.
+```text
+Client request path
+-------------------
+  Unix socket              WS /ws                  API /api/*
+  (CLI, scripts)           (browser PTY)            (browser HTTP)
+       |                        |                        |
+       |               ┌────────┴────────┐      ┌───────┴────────┐
+       |               │ Origin gate     │      │ CSRF/Origin    │
+       |               │ (ALLOWED_ORIGINS│      │ (POST/PUT/..   │
+       |               │  + localhost)   │      │  + allowed     │
+       |               └────────┬────────┘      │  hostnames)    │
+       |                        |               └───────┬────────┘
+       |               ┌────────┴────────┐              |
+       |               │ Auth            │      ┌───────┴────────┐
+       |               │ (cookie/header) │      │ Auth/MFA       │
+       |               └────────┬────────┘      │ (session token)│
+       |                        |               └───────┬────────┘
+       |                        |                       |
+       |                   WS upgrade           ┌───────┴────────┐
+       |                                        │ Rate limit     │
+       |                                        │ (per-IP)       │
+       |                                        └───────┬────────┘
+       |                                                |
+       └────────────────────────────────────────────────┘
+                                |
+                                v
+                         Route handler
+```
 
-3. `WebSocket` (`/ws`)
-- Live PTY stream and session event fanout for dashboard UX.
+Key distinction: Unix socket bypasses all HTTP security middleware (origin, auth, CSRF, rate limit) because it relies on OS-level access control (`chmod 0600`). The HTTP path enforces all layers.
 
 ## 3) Session Lifecycle Model
 
@@ -120,12 +160,43 @@ Rule:
 
 ## 5) Security Boundaries
 
-Critical controls and authorities:
-- Hook auth secret validation (`X-CodePiper-Secret`) in `packages/daemon/src/api/hooks.ts`.
-- Auth/MFA/session enforcement in `packages/daemon/src/auth/*`.
-- HTTP CSRF/origin protections in `packages/daemon/src/api/server.ts`.
-- Encrypted env storage in `packages/daemon/src/crypto/encryption.ts`.
-- No-hook provider preflight policy checks in `packages/daemon/src/api/inputPolicy.ts`.
+```text
+Security layers (from outermost to innermost)
+──────────────────────────────────────────────
+
+Layer 1: Transport
+  Unix socket ──> chmod 0600 (OS-level, owner-only)
+  HTTP/WS     ──> CODEPIPER_ALLOWED_ORIGINS gate
+                  - WS upgrade: rejectNonLocalOrigin()
+                  - API mutate: rejectCrossSiteApiRequest()
+                  Source: packages/daemon/src/api/server.ts
+
+Layer 2: Authentication
+  Password (Argon2) + TOTP MFA ──> session cookie
+  Onboarding flow enforces MFA before issuing sessions
+  CLI-only reset paths (reset-password, reset-mfa)
+  Source: packages/daemon/src/auth/*
+
+Layer 3: Request integrity
+  CSRF ──> Origin/Referer match on POST/PUT/PATCH/DELETE
+  API rate limit ──> per-IP sliding window
+  Body size limit ──> per-route max (10MB images, 1MB default)
+  Source: packages/daemon/src/api/server.ts, bodyLimit.ts
+
+Layer 4: Authorization
+  Hook secret ──> X-CodePiper-Secret header validation
+  Policy engine ──> allow|deny|ask per tool/path pattern
+  Input preflight ──> no-hook provider policy checks
+  Source: packages/daemon/src/api/hooks.ts,
+          packages/daemon/src/sessions/policyEngine.ts,
+          packages/daemon/src/api/inputPolicy.ts
+
+Layer 5: Data protection
+  Env set encryption ──> AES-256-GCM at rest
+  Billing isolation ──> ANTHROPIC_API_KEY scrub (subscription mode)
+  CLAUDECODE scrub ──> always removed from session env
+  Source: packages/daemon/src/crypto/encryption.ts
+```
 
 Security invariants:
 - Never log secrets.
@@ -138,13 +209,30 @@ Source of truth:
 - `packages/daemon/src/db/schema.sql`
 - `packages/daemon/src/db/db.ts`
 
-Core persisted domains:
-- session lifecycle, events, transcript offsets.
-- policies/policy sets/audit decisions.
-- workflows/executions.
-- auth configuration/sessions.
-- daemon settings/workspaces/env sets.
-- notifications and push subscriptions.
+| Domain | Tables | Purpose |
+|--------|--------|---------|
+| Core | `sessions`, `events`, `transcript_offsets` | Session lifecycle, hook/transcript events, JSONL byte offsets |
+| Policy | `policies`, `policy_decisions`, `policy_sets`, `policy_set_members`, `session_policy_sets` | Rules, M:N set membership, audit log |
+| Workflows | `workflows`, `workflow_executions`, `workflow_steps` | DSL definitions and execution state |
+| Analytics | `token_usage`, `model_switches`, `transcript_content` | Token tracking, model history, transcript storage |
+| Settings | `workspaces`, `env_sets`, `daemon_settings` | Workspace config, encrypted env vars, global toggles |
+| Auth | `auth_config`, `auth_sessions` | Password/MFA config, session tokens |
+| Notifications | `session_notifications`, `push_subscriptions`, `session_notification_prefs` | Inbox, VAPID subscriptions, per-session prefs |
+
+```text
+Write paths into SQLite
+-----------------------
+CLI/API request ──> route handler ──> db.createSession() / db.insertEvent() / ...
+                                          |
+Hook event ──> hooks.ts ──> db.insertEvent() + policyEngine.evaluate()
+                                          |
+Transcript tailer ──> db.upsertTranscriptOffset() + db.insertTokenUsage()
+                                          |
+                                          v
+                                     SQLite (WAL mode)
+```
+
+Design principle: **persist first, process later** — all state is written to SQLite before in-memory processing to ensure crash-safe recovery.
 
 ## 7) Extensibility Playbooks
 

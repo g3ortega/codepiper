@@ -5,7 +5,12 @@ import { rm } from "node:fs/promises";
 import * as OTPAuth from "otpauth";
 import { AuthService, hashToken } from "../auth/authService";
 import { Database } from "../db/db";
-import { handleAuthSetup, handleAuthStatus, handleMfaVerify } from "./authRoutes";
+import {
+  handleAuthSetup,
+  handleAuthStatus,
+  handleCliResetPassword,
+  handleMfaVerify,
+} from "./authRoutes";
 import type { RouteContext } from "./routes";
 
 describe("authRoutes onboarding MFA hardening", () => {
@@ -66,7 +71,7 @@ describe("authRoutes onboarding MFA hardening", () => {
     expect(setCookie).toContain("Secure");
   });
 
-  it("auth status reports mfaSetupRequired while onboarding is pending", async () => {
+  it("auth status reports onboardingPending without mfaSetupRequired when onboarding cookie is absent", async () => {
     await authService.setupPassword("test-password-123", "127.0.0.1", "TestAgent");
     const req = new Request("http://localhost/auth/status");
 
@@ -76,6 +81,35 @@ describe("authRoutes onboarding MFA hardening", () => {
     const body = await response.json();
     expect(body.setupRequired).toBe(false);
     expect(body.authenticated).toBe(false);
+    expect(body.onboardingPending).toBe(true);
+    expect(body.mfaSetupRequired).toBe(false);
+  });
+
+  it("auth status reports mfaSetupRequired when onboarding cookie is valid", async () => {
+    const setupReq = new Request("http://localhost/auth/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "test-password-123" }),
+    });
+    const setupResponse = await handleAuthSetup(setupReq, ctx);
+    const setupCookieHeader = setupResponse.headers.get("Set-Cookie") ?? "";
+    const onboardingToken = setupCookieHeader.match(/codepiper_onboarding=([a-f0-9]{64})/)?.[1];
+    if (!onboardingToken) {
+      throw new Error("Expected onboarding token cookie");
+    }
+
+    const req = new Request("http://localhost/auth/status", {
+      headers: {
+        Cookie: `codepiper_onboarding=${onboardingToken}`,
+      },
+    });
+
+    const response = await handleAuthStatus(req, ctx);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.setupRequired).toBe(false);
+    expect(body.onboardingPending).toBe(true);
     expect(body.mfaSetupRequired).toBe(true);
   });
 
@@ -124,5 +158,23 @@ describe("authRoutes onboarding MFA hardening", () => {
     const verifySetCookie = verifyResponse.headers.get("Set-Cookie") ?? "";
     expect(verifySetCookie).toContain("codepiper_session=");
     expect(verifySetCookie).toContain("codepiper_onboarding=;");
+  });
+
+  it("cli reset-password can generate and return a secure password", async () => {
+    await authService.resetPassword("initial-password-123");
+    const req = new Request("http://localhost/auth/cli/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ generate: true }),
+    });
+
+    const response = await handleCliResetPassword(req, ctx);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.ok).toBe(true);
+    expect(body.generated).toBe(true);
+    expect(typeof body.password).toBe("string");
+    expect(body.password.length).toBeGreaterThanOrEqual(8);
+    expect(authService.isMfaSetupPending()).toBe(true);
   });
 });

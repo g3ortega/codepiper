@@ -224,7 +224,7 @@ codepiper daemon --web --port 3456
 Then:
 1. Open `http://127.0.0.1:3000` (or your custom port).
 2. Complete onboarding:
-   1. Set admin password.
+   1. Sign in with the bootstrap password printed by the daemon on first web start.
    2. Set up and verify MFA (required before first sign-in).
 3. Create your first session in **Sessions**.
 4. Send a prompt from terminal/conversation view.
@@ -232,8 +232,10 @@ Then:
 ### First-Run Onboarding (Mandatory MFA)
 
 Web onboarding is a strict two-step flow:
-1. Set your admin password.
-2. Complete TOTP MFA setup and verification.
+1. Daemon generates a secure bootstrap password once (printed on first `codepiper daemon --web` run).
+   - Password is printed only on TTY startup (not in non-interactive service logs).
+   - For headless/service deployments, rotate/generate from host CLI: `codepiper auth reset-password --generate`
+2. After signing in with that password, complete TOTP MFA setup and verification.
 
 Until MFA verification succeeds, the dashboard remains in onboarding mode and does not issue a normal authenticated session.
 
@@ -241,6 +243,12 @@ MFA disable/reset is CLI-only:
 ```bash
 codepiper auth reset-mfa
 ```
+
+Rotate password with a generated secure value:
+```bash
+codepiper auth reset-password --generate
+```
+If MFA is not enabled, this command forces MFA onboarding on the next sign-in.
 
 ### Direct Tmux Attach
 
@@ -375,8 +383,13 @@ Environment Variables:
   CODEPIPER_DB_PATH       SQLite database path (default: ~/.codepiper/codepiper.db)
   CODEPIPER_WS_PORT       WebSocket port (default: 9999)
   CODEPIPER_HTTP_PORT     HTTP port (default: 3000, overridden by --port)
+  CODEPIPER_ALLOWED_ORIGINS       Comma-separated allowed origin hostnames for WebSocket and CSRF checks.
+                                  Required when accessing the dashboard from a non-localhost domain
+                                  (e.g., via reverse proxy, Cloudflare Tunnel, etc.).
+                                  Localhost is always allowed implicitly
   CODEPIPER_FORCE_SECURE_COOKIES  Optional (`1`) to force `Secure` auth cookies behind TLS-terminating proxies
   CODEPIPER_TRUST_PROXY_HEADERS   Optional (`1`) to trust proxy headers (`X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Proto`) for client IP and secure-cookie inference
+  CODEPIPER_MFA_QR_TIMEOUT_MS     Optional QR generation timeout in ms before manual-key fallback (default: 8000)
   CODEPIPER_PUSH_ENABLED  Optional daemon push delivery toggle (`1` to enable)
   CODEPIPER_PUSH_PUBLIC_KEY   Optional Base64URL VAPID public key for daemon push delivery
   CODEPIPER_PUSH_PRIVATE_KEY  Optional Base64URL VAPID private key for daemon push delivery
@@ -476,7 +489,8 @@ Sessions support two billing modes via `--billing` flag or `billingMode` API par
 - Unix socket API is trusted local access (no session token required)
 - HTTP/WebSocket dashboard routes enforce session auth when auth is configured
 - MFA disable/reset is CLI-only (`codepiper auth reset-mfa`) to reduce browser downgrade risk
-- Browser-originated mutating HTTP API requests require same-origin (CSRF mitigation)
+- Browser-originated mutating HTTP API requests require same-origin or `CODEPIPER_ALLOWED_ORIGINS` match (CSRF mitigation)
+- WebSocket upgrades gated by `Origin` header (CSWSH prevention) — only localhost and `CODEPIPER_ALLOWED_ORIGINS` accepted
 - Input validation prevents injection attacks
 - Audit logs for all permission decisions
 - Remote access recommended via SSH port forwarding

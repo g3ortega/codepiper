@@ -46,13 +46,20 @@ export async function handleAuthStatus(req: Request, ctx: RouteContext): Promise
     return Response.json({
       setupRequired: false,
       mfaEnabled: false,
+      onboardingPending: false,
       authenticated: false,
       authEnabled: false,
     });
   }
 
   const setupRequired = authService.isSetupRequired();
-  const mfaSetupRequired = !setupRequired && authService.isMfaSetupPending();
+  const onboardingPending = !setupRequired && authService.isMfaSetupPending();
+  let mfaSetupRequired = false;
+  if (onboardingPending) {
+    const onboardingTokenHash = extractAndHashOnboardingToken(req);
+    mfaSetupRequired =
+      onboardingTokenHash !== null && authService.validateOnboardingToken(onboardingTokenHash);
+  }
   const tokenHash = extractAndHashToken(req);
   const authenticated = tokenHash ? authService.validateSession(tokenHash) : false;
 
@@ -62,7 +69,13 @@ export async function handleAuthStatus(req: Request, ctx: RouteContext): Promise
     mfaEnabled = config?.totpEnabled ?? false;
   }
 
-  return Response.json({ setupRequired, mfaEnabled, mfaSetupRequired, authenticated });
+  return Response.json({
+    setupRequired,
+    mfaEnabled,
+    mfaSetupRequired,
+    onboardingPending,
+    authenticated,
+  });
 }
 
 export async function handleAuthSetup(req: Request, ctx: RouteContext): Promise<Response> {
@@ -233,8 +246,15 @@ export async function handleMfaSetup(_req: Request, ctx: RouteContext): Promise<
     return Response.json({ error: "Auth not configured" }, { status: 500 });
   }
 
-  const result = await authService.generateTotpSetup();
-  return Response.json(result);
+  try {
+    const result = await authService.generateTotpSetup();
+    return Response.json(result);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return Response.json({ error: error.message, code: error.code }, { status: 400 });
+    }
+    return Response.json({ error: "Failed to generate MFA setup data" }, { status: 500 });
+  }
 }
 
 export async function handleMfaVerify(req: Request, ctx: RouteContext): Promise<Response> {
@@ -318,12 +338,30 @@ export async function handleCliResetPassword(req: Request, ctx: RouteContext): P
 
   try {
     const body = (await req.json()) as Record<string, unknown>;
-    const password = getStringField(body, "password");
-    if (!password) {
-      return Response.json({ error: "Password is required" }, { status: 400 });
+    const shouldGenerate = body.generate === true;
+
+    let password: string;
+    if (shouldGenerate) {
+      password = authService.generateSecurePassword();
+    } else {
+      const provided = getStringField(body, "password");
+      if (!provided) {
+        return Response.json({ error: "Password is required" }, { status: 400 });
+      }
+      password = provided;
     }
 
     await authService.resetPassword(password);
+
+    // Re-enter MFA onboarding when MFA is not currently enabled
+    const config = ctx.db.getAuthConfig();
+    if (config && !config.totpEnabled) {
+      ctx.db.updateAuthOnboardingState(true, null, null);
+    }
+
+    if (shouldGenerate) {
+      return Response.json({ ok: true, generated: true, password });
+    }
     return Response.json({ ok: true });
   } catch (error) {
     if (error instanceof AuthError) {

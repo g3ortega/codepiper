@@ -206,8 +206,11 @@ Manage authentication.
 ```bash
 codepiper auth status
 codepiper auth reset-password
+codepiper auth reset-password --generate
 codepiper auth reset-mfa
 ```
+
+`reset-password --generate` rotates to a newly generated secure password and prints it once. If MFA is not enabled, CodePiper will require MFA onboarding on next sign-in.
 
 ### analytics
 
@@ -301,6 +304,13 @@ All commands:
 - Handle connection errors gracefully
 - Support custom socket paths via `--socket` flag
 - Provide helpful error messages
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CODEPIPER_SOCKET` | `/tmp/codepiper.sock` | Unix socket path for daemon communication |
+| `CODEPIPER_WORKFLOW_LOG_POLL_MS` | `1000` | Poll interval (ms) for `workflow logs --follow` |
 
 ### Adding a New Command
 

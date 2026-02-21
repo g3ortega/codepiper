@@ -87,9 +87,50 @@ Core:
 
 Security/proxy:
 
-- `CODEPIPER_ALLOWED_ORIGINS` for trusted cross-origin hostnames
+- `CODEPIPER_ALLOWED_ORIGINS` — comma-separated hostnames trusted for WebSocket upgrades and
+  browser-originated state-changing API requests (CSRF gate). Required when the dashboard is
+  accessed from a non-localhost domain (reverse proxy, Cloudflare Tunnel, etc.).
+  Accepts bare hostnames (`app.example.com`) or full origins (`https://app.example.com`);
+  the scheme is stripped and only the hostname is matched.
+  Localhost (`127.0.0.1`, `::1`, `localhost`) is always allowed implicitly.
 - `CODEPIPER_FORCE_SECURE_COOKIES=1` behind TLS-terminating proxy
 - `CODEPIPER_TRUST_PROXY_HEADERS=1` when proxy forwards client IP headers and `X-Forwarded-Proto` (for secure-cookie inference)
+
+Authentication onboarding note:
+
+- On first startup with web enabled and no password configured, CodePiper generates a bootstrap password.
+- The password is shown only when daemon stdout is a TTY (to avoid leaking secrets into service logs).
+- In non-interactive service startup flows, generate/rotate from CLI:
+  - `codepiper auth reset-password --generate`
+
+How `CODEPIPER_ALLOWED_ORIGINS` protects the daemon:
+
+```text
+Browser (app.example.com)
+    |
+    |  Origin: https://app.example.com
+    v
+TLS Reverse Proxy ──────────────────────> Daemon (127.0.0.1:3000)
+                                            |
+                                            ├── WebSocket /ws upgrade
+                                            |   └── rejectNonLocalOrigin()
+                                            |       hostname ∈ {localhost, ALLOWED_ORIGINS}? ── yes → upgrade
+                                            |                                                   no  → 403
+                                            |
+                                            └── POST/PUT/PATCH/DELETE /api/*
+                                                └── rejectCrossSiteApiRequest()
+                                                    Origin matches target? ── yes → allow
+                                                    hostname ∈ ALLOWED_ORIGINS? ── yes → allow
+                                                                                   no  → 403
+```
+
+Example — Cloudflare Tunnel to `codepiper.example.com`:
+
+```bash
+CODEPIPER_ALLOWED_ORIGINS=codepiper.example.com
+CODEPIPER_FORCE_SECURE_COOKIES=1
+CODEPIPER_TRUST_PROXY_HEADERS=1
+```
 
 Push (optional):
 
@@ -114,6 +155,7 @@ User=codepiper
 Group=codepiper
 Environment=HOME=/home/codepiper
 Environment=CODEPIPER_HTTP_PORT=3000
+Environment=CODEPIPER_ALLOWED_ORIGINS=codepiper.example.com
 Environment=CODEPIPER_FORCE_SECURE_COOKIES=1
 Environment=CODEPIPER_TRUST_PROXY_HEADERS=1
 ExecStart=/usr/local/bin/codepiper daemon --web
@@ -137,6 +179,14 @@ sudo systemctl status codepiper
 ```
 
 ## 7) Nginx Reverse Proxy Example
+
+Daemon env (must include the proxy hostname):
+
+```bash
+CODEPIPER_ALLOWED_ORIGINS=codepiper.example.com
+CODEPIPER_FORCE_SECURE_COOKIES=1
+CODEPIPER_TRUST_PROXY_HEADERS=1
+```
 
 ```nginx
 server {

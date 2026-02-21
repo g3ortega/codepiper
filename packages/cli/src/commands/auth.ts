@@ -7,7 +7,7 @@ interface AuthOptions {
   args: string[];
 }
 
-function parseAuthOptions(args: string[]): AuthOptions {
+export function parseAuthOptions(args: string[]): AuthOptions {
   let socket = "/tmp/codepiper.sock";
   const positional: string[] = [];
 
@@ -69,7 +69,41 @@ async function handleStatus(socket: string): Promise<void> {
   }
 }
 
-async function handleResetPassword(socket: string): Promise<void> {
+interface ResetPasswordFlags {
+  generate: boolean;
+}
+
+export function parseResetPasswordFlags(args: string[]): ResetPasswordFlags {
+  const flags: ResetPasswordFlags = { generate: false };
+  for (const arg of args) {
+    if (arg === "--generate" || arg === "-g") {
+      flags.generate = true;
+      continue;
+    }
+    throw new Error(`Unknown reset-password option: ${arg}`);
+  }
+  return flags;
+}
+
+async function handleResetPassword(socket: string, args: string[]): Promise<void> {
+  const flags = parseResetPasswordFlags(args);
+  if (flags.generate) {
+    const result = await daemonRequest<{ ok: boolean; generated: boolean; password: string }>(
+      socket,
+      "/auth/cli/reset-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ generate: true }),
+      }
+    );
+
+    console.log("\x1b[32m✓\x1b[0m Password rotated with a generated secure value");
+    console.log(`  New password: ${result.password}`);
+    console.log("  All existing sessions have been invalidated.");
+    console.log("  Keep this password secure and complete MFA onboarding if prompted.");
+    return;
+  }
+
   process.stdout.write("New password: ");
   const password = await readPasswordFromStdin();
 
@@ -240,7 +274,7 @@ export async function runAuthCommand(args: string[]): Promise<void> {
       await handleStatus(options.socket);
       break;
     case "reset-password":
-      await handleResetPassword(options.socket);
+      await handleResetPassword(options.socket, options.args);
       break;
     case "reset-mfa":
       await handleResetMfa(options.socket);
@@ -254,7 +288,7 @@ export async function runAuthCommand(args: string[]): Promise<void> {
     default:
       console.error(`Unknown auth subcommand: ${options.subcommand}`);
       console.error(
-        "Available subcommands: status, reset-password, reset-mfa, sessions, revoke-all"
+        "Available subcommands: status, reset-password [--generate], reset-mfa, sessions, revoke-all"
       );
       process.exit(1);
   }
