@@ -6,6 +6,7 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
 <!-- Search modal overlay -->
 <div
   id="docs-search-overlay"
+  data-bundle-path={bundlePath}
   class="fixed inset-0 z-50 hidden items-start justify-center pt-[10vh] sm:pt-[14vh] px-4"
   style="background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);"
 >
@@ -43,9 +44,32 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
   </div>
 </div>
 
-<script define:vars={{ bundlePath }}>
-  let pagefind = null;
-  let debounceTimer = null;
+<script>
+  interface PagefindResult {
+    url: string;
+    meta?: { title?: string };
+    excerpt?: string;
+    sub_results?: { title?: string; excerpt?: string }[];
+  }
+
+  interface PagefindSearch {
+    results: { data(): Promise<PagefindResult> }[];
+  }
+
+  interface PagefindModule {
+    init(): Promise<void>;
+    search(query: string): Promise<PagefindSearch>;
+  }
+
+  declare global {
+    interface Window {
+      __openDocsSearch?: () => void;
+    }
+  }
+
+  const bundlePath = document.getElementById("docs-search-overlay")?.dataset.bundlePath ?? "/codepiper/pagefind/pagefind.js";
+  let pagefind: PagefindModule | null = null;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   function getOverlay() {
     return document.getElementById("docs-search-overlay");
@@ -54,7 +78,7 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
   async function initPagefind() {
     if (pagefind) return;
     try {
-      pagefind = await import(bundlePath);
+      pagefind = await import(bundlePath) as PagefindModule;
       await pagefind.init();
     } catch (e) {
       console.warn("Pagefind init failed:", e);
@@ -69,7 +93,7 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
     document.body.style.overflow = "hidden";
     initPagefind();
     requestAnimationFrame(() => {
-      const input = document.getElementById("docs-search-input");
+      const input = document.getElementById("docs-search-input") as HTMLInputElement | null;
       if (input) { input.value = ""; input.focus(); }
       clearResults();
     });
@@ -89,10 +113,9 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
   }
 
   /** Parse Pagefind excerpt HTML (contains <mark> tags) into DOM nodes safely */
-  function parseExcerpt(excerptHtml) {
+  function parseExcerpt(excerptHtml: string) {
     const frag = document.createDocumentFragment();
     if (!excerptHtml) return frag;
-    // Split on <mark>...</mark> boundaries
     const parts = excerptHtml.split(/(<mark>.*?<\/mark>)/g);
     for (const part of parts) {
       const markMatch = part.match(/^<mark>(.*?)<\/mark>$/);
@@ -107,7 +130,7 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
     return frag;
   }
 
-  function renderResults(results, query) {
+  function renderResults(results: PagefindResult[], query: string) {
     const container = document.getElementById("docs-search-results");
     if (!container) return;
     container.replaceChildren();
@@ -122,7 +145,6 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
       return;
     }
 
-    // Results count
     const countEl = document.createElement("div");
     countEl.style.cssText = "padding: 0.5rem 1rem 0.25rem; font-size: 0.6875rem; color: #4b5563; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;";
     countEl.textContent = results.length + " result" + (results.length !== 1 ? "s" : "");
@@ -133,7 +155,7 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
     }
   }
 
-  function buildResultEl(result) {
+  function buildResultEl(result: PagefindResult) {
     const { url, meta, excerpt, sub_results } = result;
     const title = (meta && meta.title) || "Untitled";
 
@@ -142,13 +164,11 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
     link.className = "docs-search-result";
     link.style.cssText = "display: block; padding: 0.625rem 1rem; text-decoration: none; transition: background 0.1s;";
 
-    // Page title
     const titleEl = document.createElement("div");
     titleEl.style.cssText = "font-size: 0.8125rem; font-weight: 600; color: #e5e7eb; margin-bottom: 0.125rem;";
     titleEl.textContent = title;
     link.appendChild(titleEl);
 
-    // Sub-results
     if (sub_results && sub_results.length > 0) {
       const subs = sub_results.slice(0, 3);
       for (const sub of subs) {
@@ -181,7 +201,7 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
     return link;
   }
 
-  async function doSearch(query) {
+  async function doSearch(query: string) {
     if (!pagefind || !query) {
       renderResults([], query);
       return;
@@ -199,8 +219,9 @@ const bundlePath = join(import.meta.env.BASE_URL, "pagefind/pagefind.js");
 
   // Input with debounce
   document.getElementById("docs-search-input")?.addEventListener("input", function (e) {
-    const query = e.target.value.trim();
-    clearTimeout(debounceTimer);
+    const target = e.target as HTMLInputElement;
+    const query = target.value.trim();
+    if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(function () { doSearch(query); }, 150);
   });
 

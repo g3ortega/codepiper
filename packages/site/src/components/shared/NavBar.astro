@@ -10,7 +10,7 @@ const isLanding = variant === "landing";
 const navLinks = [
   { href: "/codepiper/docs/", label: "Docs" },
   { href: "/codepiper/blog/", label: "Blog" },
-  { href: "https://github.com/g3ortega/codepiper", label: "GitHub", external: true },
+  { href: "https://github.com/g3ortega/codepiper/stargazers", label: "GitHub", external: true },
 ];
 ---
 
@@ -124,15 +124,15 @@ const navLinks = [
 <script is:inline>
   // Blur nav on scroll
   const nav = document.getElementById("site-nav");
-  if (window.scrollY > 50) nav.classList.add("nav-blur");
+  if (nav && window.scrollY > 50) nav.classList.add("nav-blur");
   let ticking = false;
   window.addEventListener("scroll", () => {
     if (!ticking) {
       requestAnimationFrame(() => {
         if (window.scrollY > 50) {
-          nav.classList.add("nav-blur");
+          nav?.classList.add("nav-blur");
         } else {
-          nav.classList.remove("nav-blur");
+          nav?.classList.remove("nav-blur");
         }
         ticking = false;
       });

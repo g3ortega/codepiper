@@ -23,7 +23,8 @@ const {
   publishDate,
 } = Astro.props;
 
-const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const siteBase = Astro.site ?? new URL("https://g3ortega.github.io");
+const canonicalURL = new URL(Astro.url.pathname, siteBase);
 const fullTitle = title === "CodePiper" ? title : `${title} | CodePiper`;
 ---
 
@@ -43,7 +44,7 @@ const fullTitle = title === "CodePiper" ? title : `${title} | CodePiper`;
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content={new URL(image, Astro.site)} />
+    <meta property="og:image" content={new URL(image, siteBase)} />
     <meta property="og:site_name" content="CodePiper" />
     {publishDate && <meta property="article:published_time" content={publishDate} />}
 
@@ -51,7 +52,7 @@ const fullTitle = title === "CodePiper" ? title : `${title} | CodePiper`;
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={fullTitle} />
     <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={new URL(image, Astro.site)} />
+    <meta name="twitter:image" content={new URL(image, siteBase)} />
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/codepiper/favicon-32.png" />
@@ -77,13 +78,6 @@ const fullTitle = title === "CodePiper" ? title : `${title} | CodePiper`;
     <!-- Sitemap -->
     <link rel="sitemap" href="/codepiper/sitemap-index.xml" />
 
-    <!-- RSS -->
-    <link
-      rel="alternate"
-      type="application/rss+xml"
-      title="CodePiper Blog"
-      href="/codepiper/rss.xml"
-    />
   </head>
 
   <body class="site-background noise min-h-screen">

@@ -13,3 +13,6 @@ dist/
 .env.local
 packages/web/vite.config.js
 packages/web/vite.config.d.ts
+
+# Astro generated files
+**/.astro/

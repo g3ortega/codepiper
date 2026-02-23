@@ -1,0 +1,56 @@
+---
+interface SidebarLink {
+  href: string;
+  label: string;
+}
+
+interface SidebarGroup {
+  section: string;
+  links: SidebarLink[];
+}
+
+interface Props {
+  sidebar: SidebarGroup[];
+  currentPath: string;
+}
+
+const { sidebar, currentPath } = Astro.props;
+---
+
+<nav class="space-y-6">
+  {sidebar.map((group) => (
+    <div>
+      <h4 class="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground mb-2 px-3">
+        {group.section}
+      </h4>
+      <ul class="space-y-0.5">
+        {group.links.map((link) => {
+          const isSoon = link.href === "#";
+          const isActive = currentPath === link.href;
+          return (
+            <li>
+              {isSoon ? (
+                <span class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-muted-foreground/50 cursor-default">
+                  {link.label}
+                  <span class="text-[9px] uppercase tracking-wider font-medium text-muted-foreground/40 bg-card/60 px-1.5 py-0.5 rounded">soon</span>
+                </span>
+              ) : (
+                <a
+                  href={link.href}
+                  class:list={[
+                    "block px-3 py-1.5 rounded-md text-sm transition-colors duration-150",
+                    isActive
+                      ? "text-primary bg-primary/8 font-medium"
+                      : "text-muted hover:text-foreground",
+                  ]}
+                >
+                  {link.label}
+                </a>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  ))}
+</nav>
