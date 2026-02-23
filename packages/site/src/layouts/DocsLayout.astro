@@ -2,6 +2,7 @@
 import SearchModal from "@/components/docs/SearchModal.astro";
 import SidebarNav from "@/components/docs/SidebarNav.astro";
 import NavBar from "@/components/shared/NavBar.astro";
+import StructuredData from "@/components/shared/StructuredData.astro";
 import BaseLayout from "./BaseLayout.astro";
 
 interface Props {
@@ -12,6 +13,31 @@ interface Props {
 
 const { title, description, headings = [] } = Astro.props;
 const currentPath = Astro.url.pathname;
+
+// Build BreadcrumbList JSON-LD from URL path
+const siteBase = "https://g3ortega.github.io";
+const segments = currentPath
+  .replace(/^\/codepiper\//, "")
+  .replace(/\/$/, "")
+  .split("/")
+  .filter(Boolean);
+const breadcrumbItems = [
+  { "@type": "ListItem", position: 1, name: "Home", item: `${siteBase}/codepiper/` },
+  ...segments.map((seg, i) => ({
+    "@type": "ListItem" as const,
+    position: i + 2,
+    name: seg
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" "),
+    item: `${siteBase}/codepiper/${segments.slice(0, i + 1).join("/")}/`,
+  })),
+];
+const breadcrumbData = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: breadcrumbItems,
+};
 
 // Sidebar navigation — links with `href: "#"` show as "soon" until content exists
 const sidebar = [
@@ -92,6 +118,7 @@ const nextPage =
 ---
 
 <BaseLayout title={title} description={description}>
+  <StructuredData data={breadcrumbData} />
   <NavBar variant="docs" />
 
   <div class="flex min-h-screen pt-16">

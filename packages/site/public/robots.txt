@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# AI crawlers — explicitly welcomed
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+Sitemap: https://g3ortega.github.io/codepiper/sitemap-index.xml
