@@ -14,7 +14,7 @@ export default defineConfig({
   integrations: [
     // Expressive Code MUST come before mdx()
     expressiveCode({
-      themes: ["one-dark-pro", "github-light"],
+      themes: ["one-dark-pro"],
       styleOverrides: {
         borderRadius: "0.75rem",
         codeFontFamily: '"DM Mono", "Menlo", "Monaco", monospace',

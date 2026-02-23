@@ -62,18 +62,7 @@ const fullTitle = title === "CodePiper" ? title : `${title} | CodePiper`;
 
     <!-- Theme -->
     <meta name="theme-color" content="#0e1016" />
-    <meta name="color-scheme" content="dark light" />
-
-    <!-- Theme detection (prevent flash) -->
-    <script is:inline>
-      (function () {
-        const stored = localStorage.getItem("codepiper-site-theme");
-        if (stored === "light") {
-          document.documentElement.classList.remove("dark");
-          document.documentElement.classList.add("light");
-        }
-      })();
-    </script>
+    <meta name="color-scheme" content="dark" />
 
     <!-- Sitemap -->
     <link rel="sitemap" href="/codepiper/sitemap-index.xml" />

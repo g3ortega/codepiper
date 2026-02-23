@@ -1,0 +1,49 @@
+---
+title: Caddy Reverse Proxy
+description: Automatic TLS reverse proxy for CodePiper with a two-line configuration.
+section: guides
+order: 4.7
+---
+
+## Overview
+
+[Caddy](https://caddyserver.com) handles TLS certificates automatically via Let's Encrypt. The simplest self-hosted reverse proxy option.
+
+| | |
+|---|---|
+| **Best for** | Self-hosted, automatic TLS, minimal config |
+| **TLS** | Automatic (Let's Encrypt) |
+| **Persistent URL** | Yes (your domain) |
+| **Auth layer** | None built-in (add `basicauth` directive or external auth) |
+
+## Prerequisites
+
+- A domain name pointing to your server
+- Caddy installed ([install guide](https://caddyserver.com/docs/install))
+- Ports 80 and 443 open (for Let's Encrypt challenge)
+
+## Caddyfile
+
+```
+codepiper.example.com {
+    reverse_proxy /ws 127.0.0.1:9999
+    reverse_proxy * 127.0.0.1:3000
+}
+```
+
+That's it. Caddy automatically obtains and renews certificates.
+
+## Daemon Environment
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://codepiper.example.com \
+codepiper daemon --web
+```
+
+## When to Use Something Else
+
+Caddy is the easiest self-hosted option, but requires a publicly reachable server. For private access without exposing ports, use [Tailscale](/codepiper/docs/guides/remote-access/tailscale/) or [Cloudflare Tunnel](/codepiper/docs/guides/remote-access/cloudflare-tunnel/).
+
+See the [Remote Access overview](/codepiper/docs/guides/remote-access/overview/) for a comparison of all methods.

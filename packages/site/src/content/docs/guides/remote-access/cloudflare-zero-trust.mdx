@@ -1,0 +1,134 @@
+---
+title: Cloudflare Zero Trust
+description: Add identity-aware access control on top of Cloudflare Tunnel for the most secure internet-facing deployment.
+section: guides
+order: 4.5
+---
+
+## Overview
+
+Cloudflare Zero Trust adds an identity-aware access layer on top of [Cloudflare Tunnel](/codepiper/docs/guides/remote-access/cloudflare-tunnel/). Users must authenticate before they can reach your dashboard. This is the most secure option for internet-facing deployments.
+
+Free for up to 50 users.
+
+| | |
+|---|---|
+| **Best for** | Production, internet-facing, team access |
+| **TLS** | Automatic (Cloudflare edge) |
+| **Persistent URL** | Yes (your domain) |
+| **Auth layer** | Identity-aware (SSO, OTP, OIDC) |
+
+## How It Works
+
+```
+User → Cloudflare Edge (TLS) → Access Policy Check → Identity Provider Login
+  → Access Token (JWT cookie) → cloudflared Tunnel → localhost:3000
+```
+
+The user hits your domain, Cloudflare checks if they have a valid Access token, and if not, redirects them to a login page. Only after authentication does traffic reach your origin.
+
+## Prerequisites
+
+A working [Cloudflare Tunnel](/codepiper/docs/guides/remote-access/cloudflare-tunnel/) setup. Complete that guide first — you need a running tunnel before adding Access policies.
+
+## Step 1: Enable an Identity Provider
+
+Go to the [Cloudflare Zero Trust dashboard](https://one.dash.cloudflare.com) → **Settings** → **Authentication** → **Login methods**.
+
+**One-time PIN (simplest, no external IdP):**
+
+Click "Add new" → select **One-time PIN**. Users authenticate by entering their email address, then a 6-digit code sent to that email. No external configuration needed.
+
+**Third-party identity providers:**
+
+Cloudflare Access supports Google, GitHub, Okta, Azure AD (Microsoft Entra ID), any OIDC provider, and SAML 2.0. You can configure multiple providers — users choose their login method on the Access login page.
+
+To add GitHub as an IdP:
+
+1. Create an OAuth App in GitHub (Settings → Developer Settings → OAuth Apps)
+2. Set the callback URL to `https://<your-team-name>.cloudflareaccess.com/cdn-cgi/access/callback`
+3. In the Zero Trust dashboard, add GitHub as a login method with the Client ID and Secret
+
+## Step 2: Create an Access Application
+
+Go to **Access** → **Applications** → **Add an application** → **Self-hosted**.
+
+Configure:
+
+- **Application name:** `CodePiper Dashboard`
+- **Session duration:** 24 hours (how long before re-authentication)
+- **Application domain:** `codepiper.yourdomain.com`
+- Add a second hostname: `codepiper-ws.yourdomain.com` (so the WebSocket endpoint is also protected)
+
+## Step 3: Create an Access Policy
+
+Each application needs at least one policy. A policy defines who can access the application.
+
+**Example: Allow specific emails via One-time PIN**
+
+| Field | Value |
+|-------|-------|
+| Policy name | Team Access |
+| Action | Allow |
+| Include rule | Emails: `alice@example.com`, `bob@example.com` |
+
+**Example: Allow an entire domain via Google SSO**
+
+| Field | Value |
+|-------|-------|
+| Policy name | Company Access |
+| Action | Allow |
+| Include rule | Email domain: `@yourcompany.com` |
+| Require rule | Login method: Google |
+
+### Policy Rule Types
+
+| Type | Logic | Use case |
+|------|-------|----------|
+| Include | OR | User must match at least one rule |
+| Require | AND | User must match all rules |
+| Exclude | NOT | User is denied if they match any rule |
+
+**Available selectors:**
+
+- Email addresses or email domains
+- Identity provider groups (Okta, Azure AD)
+- IP ranges or countries
+- Login method
+- Service tokens (for API/automation access)
+
+## Step 4: Verify
+
+1. Open `https://codepiper.yourdomain.com` in an incognito window
+2. You should see the Cloudflare Access login page
+3. Authenticate with your chosen method
+4. After authentication, the CodePiper dashboard loads
+
+## WebSocket Authentication
+
+Cloudflare Access issues a JWT token as a `CF_Authorization` cookie after login. The browser automatically sends this cookie on the WebSocket upgrade request, so the WebSocket endpoint is authenticated seamlessly.
+
+> **Note:** If you're connecting to the WebSocket from a non-browser client (e.g., a CLI tool), you'll need to include the `CF_Authorization` token in the request headers. For the browser-based dashboard, this works automatically.
+
+## Gotchas
+
+- **OTP + groups:** One-time PIN users don't have IdP group memberships. Group-based policies won't work with OTP — use email-based rules instead.
+- **Token expiry:** If an Access session expires while a WebSocket connection is open, the existing connection continues. New connections (including reconnections) require re-authentication.
+- **Email gating:** With One-time PIN, users whose emails don't match an Allow policy never receive the PIN email. Cloudflare silently drops it to prevent email enumeration.
+
+## Daemon Environment
+
+Same as [Cloudflare Tunnel](/codepiper/docs/guides/remote-access/cloudflare-tunnel/#daemon-environment):
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://codepiper.yourdomain.com \
+codepiper daemon --web
+```
+
+## When to Use Something Else
+
+Cloudflare Zero Trust is the gold standard for internet-facing deployments. For private-only access without managing a domain, consider [Tailscale](/codepiper/docs/guides/remote-access/tailscale/).
+
+See the [Remote Access overview](/codepiper/docs/guides/remote-access/overview/) for a comparison of all methods.

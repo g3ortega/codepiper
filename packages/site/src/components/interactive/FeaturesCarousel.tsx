@@ -152,17 +152,17 @@ export default function FeaturesCarousel({ features }: Props) {
   const dotCount = maxIndex + 1;
 
   const arrowStyle: React.CSSProperties = {
-    background: "rgba(22, 27, 34, 0.85)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+    background: "rgba(22, 27, 34, 0.9)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    border: "1px solid rgba(255, 255, 255, 0.1)",
+    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) inset",
   };
 
   return (
     <section
       ref={containerRef}
-      className="group/carousel relative"
+      className="group/carousel"
       aria-label="Feature carousel"
       aria-roledescription="carousel"
       onMouseEnter={() => setIsPaused(true)}
@@ -170,92 +170,99 @@ export default function FeaturesCarousel({ features }: Props) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Track */}
-      <div className="overflow-hidden">
-        <div
-          className="flex"
-          style={{
-            gap: `${GAP}px`,
-            transform: `translateX(calc(${translateX}% - ${gapTranslate}px))`,
-            transition: prefersReducedMotion
-              ? "none"
-              : "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
-        >
-          {features.map((feature, i) => (
-            <div
-              key={i}
-              className="feature-card group relative p-6 rounded-xl border border-border bg-card/60 backdrop-blur-sm hover:-translate-y-1 transition-all duration-200"
-              data-color={feature.color}
-              style={{
-                flexShrink: 0,
-                width: `calc(${cardWidthPercent}% - ${gapOffset}px)`,
-              }}
+      {/* Flex row: [prev arrow] [card track] [next arrow] */}
+      <div className="flex items-center">
+        {/* Prev Arrow — own column, hidden on mobile */}
+        <div className="hidden lg:flex shrink-0 w-14 items-center justify-center">
+          <button
+            type="button"
+            onClick={prev}
+            aria-label="Previous features"
+            className="w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-all duration-200 cursor-pointer hover:scale-110"
+            style={arrowStyle}
+          >
+            <svg
+              className="w-4 h-4 text-[#6b7280] group-hover/carousel:text-[#d1d5db] transition-colors"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
             >
-              <IconBox html={feature.icon} color={feature.color} />
+              <path d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        </div>
 
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-base font-semibold text-foreground">{feature.title}</h3>
-                {feature.claudeOnly && (
-                  <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium border"
-                    style={{
-                      backgroundColor: "rgba(245, 158, 11, 0.08)",
-                      color: "rgba(245, 158, 11, 0.7)",
-                      borderColor: "rgba(245, 158, 11, 0.15)",
-                    }}
-                  >
-                    <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="4" />
-                    </svg>
-                    Claude Code
-                  </span>
-                )}
+        {/* Card Track */}
+        <div className="overflow-hidden flex-1 min-w-0">
+          <div
+            className="flex"
+            style={{
+              gap: `${GAP}px`,
+              transform: `translateX(calc(${translateX}% - ${gapTranslate}px))`,
+              transition: prefersReducedMotion
+                ? "none"
+                : "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
+          >
+            {features.map((feature, i) => (
+              <div
+                key={i}
+                className="feature-card group relative p-6 rounded-xl border border-border bg-card/60 backdrop-blur-sm hover:-translate-y-1 transition-all duration-200"
+                data-color={feature.color}
+                style={{
+                  flexShrink: 0,
+                  width: `calc(${cardWidthPercent}% - ${gapOffset}px)`,
+                }}
+              >
+                <IconBox html={feature.icon} color={feature.color} />
+
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-base font-semibold text-foreground">{feature.title}</h3>
+                  {feature.claudeOnly && (
+                    <span
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium border"
+                      style={{
+                        backgroundColor: "rgba(245, 158, 11, 0.08)",
+                        color: "rgba(245, 158, 11, 0.7)",
+                        borderColor: "rgba(245, 158, 11, 0.15)",
+                      }}
+                    >
+                      <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="4" />
+                      </svg>
+                      Claude Code
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-sm text-muted leading-relaxed">{feature.description}</p>
               </div>
+            ))}
+          </div>
+        </div>
 
-              <p className="text-sm text-muted leading-relaxed">{feature.description}</p>
-            </div>
-          ))}
+        {/* Next Arrow — own column, hidden on mobile */}
+        <div className="hidden lg:flex shrink-0 w-14 items-center justify-center">
+          <button
+            type="button"
+            onClick={next}
+            aria-label="Next features"
+            className="w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-all duration-200 cursor-pointer hover:scale-110"
+            style={arrowStyle}
+          >
+            <svg
+              className="w-4 h-4 text-[#6b7280] group-hover/carousel:text-[#d1d5db] transition-colors"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
       </div>
-
-      {/* Prev Arrow */}
-      <button
-        type="button"
-        onClick={prev}
-        aria-label="Previous features"
-        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200 cursor-pointer md:-translate-x-2"
-        style={arrowStyle}
-      >
-        <svg
-          className="w-4 h-4 text-[#9ca3af] hover:text-[#f3f4f6] transition-colors"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-
-      {/* Next Arrow */}
-      <button
-        type="button"
-        onClick={next}
-        aria-label="Next features"
-        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200 cursor-pointer md:translate-x-2"
-        style={arrowStyle}
-      >
-        <svg
-          className="w-4 h-4 text-[#9ca3af] hover:text-[#f3f4f6] transition-colors"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
 
       {/* Dots */}
       <div
