@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface Feature {
   icon: string;
@@ -14,6 +14,7 @@ interface Props {
 
 const GAP = 24; // px — matches Tailwind gap-6
 const AUTO_PLAY_MS = 4000;
+const TRANSITION_MS = 500;
 
 function getCardsPerView(): number {
   if (typeof window === "undefined") return 3;
@@ -44,31 +45,66 @@ function IconBox({ html, color }: { html: string; color: string }) {
 }
 
 export default function FeaturesCarousel({ features }: Props) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const total = features.length;
   const [cardsPerView, setCardsPerView] = useState(3);
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const touchStartX = useRef(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [animate, setAnimate] = useState(true);
+
+  // Position in extended array — real cards start at index `cloneCount`
+  const cloneCount = cardsPerView;
+  const [position, setPosition] = useState(cardsPerView);
+  const posRef = useRef(cardsPerView);
+
+  // Logical index: which real card is first visible (0 to total-1)
+  const currentIndex = (((position - cloneCount) % total) + total) % total;
+
+  // Extended features: [last N clones] + [real cards] + [first N clones]
+  // Clones enable seamless wrap — the track slides into clones, then silently
+  // resets position to the equivalent real cards (no visible jump).
+  const extendedFeatures = useMemo(
+    () => [...features.slice(-cloneCount), ...features, ...features.slice(0, cloneCount)],
+    [features, cloneCount]
+  );
+
+  const touchRef = useRef({
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastTime: 0,
+    locked: false,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wheelDelta = useRef(0);
+  const wheelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const total = features.length;
-  const maxIndex = Math.max(0, total - cardsPerView);
-
-  // Responsive cardsPerView
+  // ── Responsive cardsPerView ──
   useEffect(() => {
-    setCardsPerView(getCardsPerView());
-    const onResize = () => {
-      const next = getCardsPerView();
-      setCardsPerView(next);
-      setCurrentIndex((prev) => Math.min(prev, Math.max(0, total - next)));
+    const update = () => {
+      const newCPV = getCardsPerView();
+      setCardsPerView((oldCPV) => {
+        if (oldCPV !== newCPV) {
+          const logIdx = (((posRef.current - oldCPV) % total) + total) % total;
+          const newPos = logIdx + newCPV;
+          posRef.current = newPos;
+          setAnimate(false);
+          setPosition(newPos);
+          requestAnimationFrame(() => setAnimate(true));
+        }
+        return newCPV;
+      });
     };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, [total]);
 
-  // Reduced motion
+  // ── Reduced motion ──
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mq.matches);
@@ -77,31 +113,71 @@ export default function FeaturesCarousel({ features }: Props) {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  // ── Navigation ──
   const next = useCallback(() => {
     if (isTransitioning) return;
     setIsTransitioning(true);
-    setCurrentIndex((i) => (i >= maxIndex ? 0 : i + 1));
-    setTimeout(() => setIsTransitioning(false), 500);
-  }, [maxIndex, isTransitioning]);
+    setAnimate(true);
+    const newPos = posRef.current + 1;
+    posRef.current = newPos;
+    setPosition(newPos);
+    setTimeout(() => {
+      if (newPos >= cloneCount + total) {
+        const resetPos = newPos - total;
+        posRef.current = resetPos;
+        setAnimate(false);
+        setPosition(resetPos);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setAnimate(true);
+            setIsTransitioning(false);
+          });
+        });
+      } else {
+        setIsTransitioning(false);
+      }
+    }, TRANSITION_MS);
+  }, [isTransitioning, cloneCount, total]);
 
   const prev = useCallback(() => {
     if (isTransitioning) return;
     setIsTransitioning(true);
-    setCurrentIndex((i) => (i <= 0 ? maxIndex : i - 1));
-    setTimeout(() => setIsTransitioning(false), 500);
-  }, [maxIndex, isTransitioning]);
+    setAnimate(true);
+    const newPos = posRef.current - 1;
+    posRef.current = newPos;
+    setPosition(newPos);
+    setTimeout(() => {
+      if (newPos < cloneCount) {
+        const resetPos = newPos + total;
+        posRef.current = resetPos;
+        setAnimate(false);
+        setPosition(resetPos);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setAnimate(true);
+            setIsTransitioning(false);
+          });
+        });
+      } else {
+        setIsTransitioning(false);
+      }
+    }, TRANSITION_MS);
+  }, [isTransitioning, cloneCount, total]);
 
   const goTo = useCallback(
     (index: number) => {
       if (isTransitioning) return;
       setIsTransitioning(true);
-      setCurrentIndex(Math.max(0, Math.min(index, maxIndex)));
-      setTimeout(() => setIsTransitioning(false), 500);
+      setAnimate(true);
+      const newPos = index + cloneCount;
+      posRef.current = newPos;
+      setPosition(newPos);
+      setTimeout(() => setIsTransitioning(false), TRANSITION_MS);
     },
-    [maxIndex, isTransitioning]
+    [isTransitioning, cloneCount]
   );
 
-  // Auto-play
+  // ── Auto-play ──
   useEffect(() => {
     if (prefersReducedMotion || isPaused) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -114,7 +190,7 @@ export default function FeaturesCarousel({ features }: Props) {
     };
   }, [isPaused, prefersReducedMotion, next]);
 
-  // Keyboard navigation
+  // ── Keyboard navigation ──
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -131,25 +207,98 @@ export default function FeaturesCarousel({ features }: Props) {
     return () => el.removeEventListener("keydown", onKey);
   }, [next, prev]);
 
-  // Touch swipe
+  // ── Touch drag with velocity-based momentum ──
+  const getCardWidth = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return 300;
+    return track.offsetWidth / cardsPerView;
+  }, [cardsPerView]);
+
   const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
+    const t = e.touches[0];
+    touchRef.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      lastX: t.clientX,
+      lastTime: Date.now(),
+      locked: false,
+    };
+    setIsDragging(true);
+    setIsPaused(true);
   };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const delta = touchStartX.current - e.changedTouches[0].clientX;
-    if (Math.abs(delta) > 50) {
-      if (delta > 0) next();
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    const ref = touchRef.current;
+    const t = e.touches[0];
+    const dx = t.clientX - ref.startX;
+    const dy = t.clientY - ref.startY;
+
+    if (!ref.locked && Math.abs(dx) + Math.abs(dy) > 10) {
+      ref.locked = true;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        setIsDragging(false);
+        setDragOffset(0);
+        return;
+      }
+    }
+
+    if (!(ref.locked && isDragging)) return;
+    e.preventDefault();
+
+    ref.lastX = t.clientX;
+    ref.lastTime = Date.now();
+    setDragOffset(dx);
+  };
+
+  const onTouchEnd = () => {
+    if (!isDragging) return;
+    const ref = touchRef.current;
+    const elapsed = Math.max(1, Date.now() - ref.lastTime);
+    const velocity = (ref.lastX - ref.startX) / elapsed;
+    const cardW = getCardWidth();
+    const threshold = cardW * 0.2;
+    const swipedFar = Math.abs(dragOffset) > threshold;
+    const flicked = Math.abs(velocity) > 0.3;
+
+    if (swipedFar || flicked) {
+      if (dragOffset < 0 || velocity < -0.3) next();
       else prev();
     }
+
+    setDragOffset(0);
+    setIsDragging(false);
   };
 
-  // Calculate translateX
+  // ── Trackpad / mouse wheel horizontal scrolling ──
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const WHEEL_THRESHOLD = 80;
+    const onWheel = (e: WheelEvent) => {
+      const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : 0;
+      if (dx === 0) return;
+      e.preventDefault();
+      wheelDelta.current += dx;
+      if (wheelTimeout.current) clearTimeout(wheelTimeout.current);
+      wheelTimeout.current = setTimeout(() => {
+        wheelDelta.current = 0;
+      }, 200);
+      if (Math.abs(wheelDelta.current) >= WHEEL_THRESHOLD) {
+        if (wheelDelta.current > 0) next();
+        else prev();
+        wheelDelta.current = 0;
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [next, prev]);
+
+  // ── Layout calculations ──
   const cardWidthPercent = 100 / cardsPerView;
   const gapOffset = (GAP * (cardsPerView - 1)) / cardsPerView;
-  const translateX = -(currentIndex * cardWidthPercent);
-  const gapTranslate = currentIndex * gapOffset + currentIndex * (GAP / cardsPerView);
-
-  const dotCount = maxIndex + 1;
+  const translateX = -(position * cardWidthPercent);
+  const gapTranslate = position * GAP;
+  const dragPx = isDragging ? dragOffset : 0;
 
   const arrowStyle: React.CSSProperties = {
     background: "rgba(22, 27, 34, 0.9)",
@@ -168,11 +317,11 @@ export default function FeaturesCarousel({ features }: Props) {
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Flex row: [prev arrow] [card track] [next arrow] */}
       <div className="flex items-center">
-        {/* Prev Arrow — own column, hidden on mobile */}
+        {/* Prev Arrow */}
         <div className="hidden lg:flex shrink-0 w-14 items-center justify-center">
           <button
             type="button"
@@ -194,18 +343,19 @@ export default function FeaturesCarousel({ features }: Props) {
         </div>
 
         {/* Card Track */}
-        <div className="overflow-hidden flex-1 min-w-0">
+        <div ref={trackRef} className="overflow-hidden flex-1 min-w-0">
           <div
             className="flex"
             style={{
               gap: `${GAP}px`,
-              transform: `translateX(calc(${translateX}% - ${gapTranslate}px))`,
-              transition: prefersReducedMotion
-                ? "none"
-                : "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+              transform: `translateX(calc(${translateX}% - ${gapTranslate}px + ${dragPx}px))`,
+              transition:
+                isDragging || !animate || prefersReducedMotion
+                  ? "none"
+                  : `transform ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
             }}
           >
-            {features.map((feature, i) => (
+            {extendedFeatures.map((feature, i) => (
               <div
                 key={i}
                 className="feature-card group relative p-6 rounded-xl border border-border bg-card/60 backdrop-blur-sm hover:-translate-y-1 transition-all duration-200"
@@ -242,7 +392,7 @@ export default function FeaturesCarousel({ features }: Props) {
           </div>
         </div>
 
-        {/* Next Arrow — own column, hidden on mobile */}
+        {/* Next Arrow */}
         <div className="hidden lg:flex shrink-0 w-14 items-center justify-center">
           <button
             type="button"
@@ -270,7 +420,7 @@ export default function FeaturesCarousel({ features }: Props) {
         role="tablist"
         aria-label="Slide controls"
       >
-        {Array.from({ length: dotCount }, (_, i) => (
+        {Array.from({ length: total }, (_, i) => (
           <button
             type="button"
             key={i}
