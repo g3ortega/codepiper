@@ -1,0 +1,200 @@
+---
+title: Policy Configuration
+description: Practical guide to creating, managing, and assigning permission policies for your sessions.
+section: guides
+order: 2
+---
+
+## Quick Setup
+
+Create a policy that auto-approves safe operations and blocks destructive ones:
+
+```bash
+codepiper policy create \
+  --name "Standard safety" \
+  --priority 100 \
+  --rules '[
+    {"action":"deny","tool":"Bash","args":{"command":"rm -rf*"},"reason":"Block recursive delete"},
+    {"action":"deny","tool":"Bash","args":{"command":"git push --force*"},"reason":"Block force push"},
+    {"action":"allow","tool":"Read","reason":"Reading is always safe"},
+    {"action":"allow","tool":"Glob","reason":"File search is safe"},
+    {"action":"allow","tool":"Grep","reason":"Content search is safe"},
+    {"action":"ask","tool":"*","reason":"Review everything else"}
+  ]'
+```
+
+Rules are evaluated in order. The first match wins.
+
+## Rule Anatomy
+
+Each rule has these fields:
+
+```json
+{
+  "action": "allow",
+  "tool": "Bash",
+  "args": { "command": "npm test*" },
+  "cwd": "/home/user/projects/*",
+  "session": "a1b2c3d4*",
+  "reason": "Allow running tests in project directories"
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `action` | Yes | `allow`, `deny`, or `ask` |
+| `tool` | No | Glob pattern matching the tool name |
+| `args` | No | Object of glob patterns matching tool arguments |
+| `cwd` | No | Glob pattern matching the working directory |
+| `session` | No | Glob pattern matching the session ID |
+| `reason` | No | Explanation logged in the audit trail |
+
+If a field is omitted, it matches everything.
+
+## Pattern Syntax
+
+| Pattern | Matches |
+|---------|---------|
+| `"Bash"` | Exactly "Bash" |
+| `"*"` | Any value |
+| `"!Bash"` | Anything except "Bash" |
+| `["Read", "Glob", "Grep"]` | Any of these three |
+| `"npm *"` | Strings starting with "npm " |
+| `"*/secret/*"` | Paths containing "/secret/" |
+
+## Common Policy Patterns
+
+### Read-only session
+
+```json
+[
+  { "action": "allow", "tool": ["Read", "Glob", "Grep", "LS"] },
+  { "action": "deny", "tool": "*", "reason": "Read-only session" }
+]
+```
+
+### Allow everything except destructive commands
+
+```json
+[
+  { "action": "deny", "tool": "Bash", "args": { "command": "rm -rf*" } },
+  { "action": "deny", "tool": "Bash", "args": { "command": "git push --force*" } },
+  { "action": "deny", "tool": "Bash", "args": { "command": "git reset --hard*" } },
+  { "action": "allow", "tool": "*" }
+]
+```
+
+### Review shell commands, allow everything else
+
+```json
+[
+  { "action": "ask", "tool": "Bash" },
+  { "action": "allow", "tool": "*" }
+]
+```
+
+### Allow npm/bun commands, deny other shell access
+
+```json
+[
+  { "action": "allow", "tool": "Bash", "args": { "command": "npm *" } },
+  { "action": "allow", "tool": "Bash", "args": { "command": "bun *" } },
+  { "action": "deny", "tool": "Bash", "reason": "Only package manager commands allowed" },
+  { "action": "allow", "tool": "*" }
+]
+```
+
+## Policy Sets
+
+Group related policies into sets for easy assignment:
+
+```bash
+# Create a policy set
+codepiper policy-set create --name "Production rules"
+
+# Add policies to it
+codepiper policy-set add-policy <set-id> <policy-id-1>
+codepiper policy-set add-policy <set-id> <policy-id-2>
+
+# Assign to a session
+codepiper start -p claude-code -d ~/project --policy-set <set-id>
+```
+
+A session can have one active policy set. The set's policies are evaluated alongside any global policies.
+
+## Priority and Evaluation
+
+When multiple policies apply to a session:
+
+1. All enabled policies are collected (session-specific + global)
+2. Policies are sorted by **priority** (highest number first)
+3. Rules within each policy are evaluated in order
+4. The **first matching rule** determines the action
+5. If no rule matches, the **default policy action** applies
+
+Set the default action:
+
+```bash
+# Default to prompting the user (safer)
+codepiper policy default ask
+
+# Default to blocking (strictest)
+codepiper policy default deny
+```
+
+## Managing Policies
+
+### CLI
+
+```bash
+# List all policies
+codepiper policy list
+
+# View a specific policy
+codepiper policy get <policy-id>
+
+# Update a policy
+codepiper policy update <policy-id> --name "Updated name" --priority 200
+
+# Toggle enable/disable
+codepiper policy toggle <policy-id>
+
+# Delete a policy
+codepiper policy delete <policy-id>
+```
+
+### Web Dashboard
+
+Navigate to **Policies** in the sidebar. The visual editor lets you create rules, drag to reorder, and toggle policies on/off.
+
+### API
+
+```bash
+curl --unix-socket /tmp/codepiper.sock \
+  -X POST http://localhost/policies \
+  -H "Content-Type: application/json" \
+  -d '{"name":"My policy","enabled":true,"priority":100,"rules":[...]}'
+```
+
+## Reviewing Decisions
+
+Every policy decision is logged in the audit trail:
+
+```bash
+# Recent decisions
+codepiper audit
+
+# Filter by session
+codepiper audit --session <session-id>
+
+# Limit results
+codepiper audit --limit 20
+```
+
+Each entry shows the timestamp, session, tool, matched rule, decision, and reason. Use this to tune your policies over time.
+
+## What's next
+
+- **[Permission Policies](/codepiper/docs/concepts/policies/)**: How the policy engine works internally
+- **[Security Model](/codepiper/docs/concepts/security/)**: Authentication and access control
+- **[Workflow Authoring](/codepiper/docs/guides/workflow-authoring/)**: Use policies with automated workflows

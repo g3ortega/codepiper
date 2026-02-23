@@ -1,0 +1,33 @@
+---
+---
+
+<div
+  id="scroll-progress"
+  class="fixed top-0 left-0 z-[60] h-[2px] opacity-0 transition-opacity duration-300"
+  style="background: linear-gradient(90deg, #06b6d4, #8b5cf6); width: 0%;"
+  aria-hidden="true"
+></div>
+
+<script is:inline>
+  (function () {
+    const bar = document.getElementById("scroll-progress");
+    if (!bar) return;
+
+    let ticking = false;
+    window.addEventListener("scroll", () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const scrollTop = window.scrollY;
+          const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+
+          bar.style.width = `${progress}%`;
+          bar.style.opacity = scrollTop > 100 ? "1" : "0";
+
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+  })();
+</script>

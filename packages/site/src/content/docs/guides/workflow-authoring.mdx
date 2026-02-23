@@ -1,0 +1,280 @@
+---
+title: Workflow Authoring
+description: Practical patterns and examples for writing CodePiper workflows.
+section: guides
+order: 3
+---
+
+## Your First Workflow
+
+Create a YAML file that implements a feature and runs tests:
+
+```yaml
+name: Implement and test
+description: Create a feature, then verify with tests
+steps:
+  - name: implement
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    prompt: "Implement user authentication with Argon2 password hashing"
+    wait:
+      type: idle_prompt
+      timeout: 300000
+
+  - name: test
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    prompt: "Run the test suite and fix any failures"
+    wait:
+      type: idle_prompt
+      timeout: 180000
+```
+
+Save it and run:
+
+```bash
+codepiper workflow create workflow.yaml
+codepiper workflow run <workflow-id>
+```
+
+Steps execute sequentially. Each session is created, receives its prompt, and waits for the agent to finish before the next step starts.
+
+## Using Variables
+
+Pass values at runtime with `--var`:
+
+```yaml
+name: Deploy to environment
+steps:
+  - name: deploy
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    prompt: "Deploy the ${branch} branch to ${target}"
+```
+
+```bash
+codepiper workflow run <id> --var branch=main --var target=staging
+```
+
+## Extracting Results
+
+Pull data from one step's output to use in later steps:
+
+```yaml
+steps:
+  - name: analyze
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    prompt: "Analyze the codebase and list all TODO comments as JSON"
+    wait:
+      type: idle_prompt
+      timeout: 120000
+    extract:
+      - key: todo_count
+        type: regex
+        pattern: "Found (\\d+) TODOs"
+
+  - name: report
+    type: log
+    message: "Found ${steps.analyze.todo_count} TODOs to address"
+```
+
+Extraction types: `regex`, `jsonpath`, `xpath`. Extracted values are available as `${steps.<step-name>.<key>}`.
+
+## Parallel Execution
+
+Run independent tasks concurrently:
+
+```yaml
+steps:
+  - name: parallel-refactor
+    type: parallel
+    waitFor: all
+    steps:
+      - name: frontend
+        type: session
+        provider: claude-code
+        cwd: ~/projects/my-app/frontend
+        prompt: "Refactor the component library to use design tokens"
+        wait:
+          type: idle_prompt
+          timeout: 300000
+
+      - name: backend
+        type: session
+        provider: claude-code
+        cwd: ~/projects/my-app/backend
+        prompt: "Refactor the API routes to use the new validation middleware"
+        wait:
+          type: idle_prompt
+          timeout: 300000
+```
+
+Wait modes:
+
+- `all`: Both branches must complete before continuing
+- `any`: Continue as soon as the first branch finishes
+- `none`: Start both and move on immediately
+
+## Conditional Logic
+
+Branch based on previous results:
+
+```yaml
+steps:
+  - name: run-tests
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    prompt: "Run the test suite"
+    wait:
+      type: idle_prompt
+      timeout: 120000
+    extract:
+      - key: passed
+        type: regex
+        pattern: "Tests: (\\d+) passed"
+
+  - name: decide
+    type: if
+    condition: "${steps.run-tests.passed} > 0"
+    then:
+      - name: deploy
+        type: log
+        message: "Tests passed. Ready to deploy."
+    else:
+      - name: fix
+        type: session
+        provider: claude-code
+        cwd: ~/projects/my-app
+        prompt: "Fix the failing tests"
+```
+
+## Looping Over Items
+
+Process a list of items:
+
+```yaml
+steps:
+  - name: process-repos
+    type: foreach
+    items: "auth-service,api-gateway,web-frontend"
+    step:
+      name: update-repo
+      type: session
+      provider: claude-code
+      cwd: ~/projects/${item}
+      prompt: "Update all dependencies to their latest versions"
+      wait:
+        type: idle_prompt
+        timeout: 180000
+```
+
+Inside the loop, `${item}` is the current value and `${index}` is the position (0, 1, 2...).
+
+Items can also come from a previous step's extraction:
+
+```yaml
+items: "${steps.find-repos.repo_list}"
+```
+
+## Error Recovery
+
+Handle failures gracefully:
+
+```yaml
+steps:
+  - name: risky-migration
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    prompt: "Run the database migration"
+    onError: retry
+    retry:
+      attempts: 3
+      delay: 10000
+
+  - name: optional-cleanup
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    prompt: "Clean up temporary files"
+    onError: continue
+```
+
+| Strategy | Behavior |
+|----------|----------|
+| `fail` | Stop the entire workflow (default) |
+| `continue` | Skip the error and move to the next step |
+| `retry` | Retry with configurable attempts and delay between retries |
+
+## Git Worktree Isolation
+
+Combine workflows with worktree isolation for safe parallel work:
+
+```yaml
+steps:
+  - name: feature-a
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    args: ["--worktree", "--create-branch", "feature/auth"]
+    prompt: "Implement the authentication module"
+    wait:
+      type: idle_prompt
+      timeout: 300000
+
+  - name: feature-b
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    args: ["--worktree", "--create-branch", "feature/api"]
+    prompt: "Implement the API endpoints"
+    wait:
+      type: idle_prompt
+      timeout: 300000
+```
+
+Each session gets its own git branch and working directory. No conflicts.
+
+## Monitoring Execution
+
+Track a running workflow:
+
+```bash
+# Check status
+codepiper workflow status <execution-id>
+
+# Follow logs in real time
+codepiper workflow logs <execution-id> --follow
+
+# Cancel if something goes wrong
+codepiper workflow cancel <execution-id>
+```
+
+The web dashboard also shows workflow execution progress under **Workflows > Executions**.
+
+## Provider Limitations
+
+Some workflow features are only available with Claude Code:
+
+| Feature | Claude Code | Codex |
+|---------|------------|-------|
+| `idle_prompt` wait | Yes | No |
+| `permission_prompt` wait | Yes | No |
+| `stop` wait | Yes | No |
+| `event` wait | Yes | No |
+| `extract` results | Yes | No |
+| `timeout` wait | Yes | Yes |
+
+Workflows using Codex sessions are limited to `timeout` waits and cannot extract results. The validator rejects unsupported combinations at creation time.
+
+## What's next
+
+- **[Workflows](/codepiper/docs/concepts/workflows/)**: How the workflow engine works
+- **[Sessions & Providers](/codepiper/docs/concepts/sessions/)**: Provider capabilities
+- **[Policy Configuration](/codepiper/docs/guides/policy-config/)**: Combine policies with workflows

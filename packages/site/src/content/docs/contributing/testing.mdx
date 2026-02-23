@@ -1,0 +1,116 @@
+---
+title: Testing Guide
+description: Running and writing tests for CodePiper.
+section: contributing
+order: 3
+---
+
+## Running Tests
+
+### All tests
+
+```bash
+bun test
+```
+
+### With coverage
+
+```bash
+bun test --coverage
+```
+
+### Watch mode
+
+```bash
+bun test --watch
+```
+
+### Specific package
+
+```bash
+bun test packages/core
+bun test packages/daemon
+bun test packages/cli
+```
+
+### Specific file
+
+```bash
+bun test packages/daemon/src/services/policy-engine.test.ts
+```
+
+## Test Structure
+
+Tests live alongside source files or in `__tests__` directories. Bun's built-in test runner is used (no Jest or Vitest).
+
+```typescript
+import { describe, test, expect, beforeEach } from "bun:test";
+
+describe("PolicyEngine", () => {
+  let engine: PolicyEngine;
+
+  beforeEach(() => {
+    engine = new PolicyEngine();
+  });
+
+  test("matches exact tool name", () => {
+    const rule = { action: "allow", tool: "Read" };
+    expect(engine.evaluate("Read", {}, [rule])).toBe("allow");
+  });
+});
+```
+
+## Key Areas to Test
+
+### Policy engine
+
+The policy engine (`packages/daemon/src/services/policy-engine.ts`) is the most critical component for testing. Cover:
+
+- Exact tool name matching
+- Glob pattern matching (wildcards, negation, arrays)
+- Argument pattern matching
+- Priority ordering across multiple policies
+- Default action fallback
+- Session-scoped vs global policies
+
+### Workflow executor
+
+The workflow runner has complex state management. Test:
+
+- Sequential step execution
+- Parallel branch completion (all, any, none)
+- Conditional branching
+- Loop iteration with variable scoping
+- Error recovery strategies (continue, fail, retry)
+- Cancellation mid-execution
+- Variable substitution across steps
+
+### Auth service
+
+- Password hashing and verification (Argon2)
+- TOTP generation and verification
+- Session token creation and validation
+- Rate limiting behavior
+- Bootstrap password flow
+
+### Provider integration
+
+- tmux session creation and cleanup
+- Input forwarding (text and key sequences)
+- Event emission and handling
+- Billing mode environment scrubbing
+
+## Pre-commit
+
+Always run the full quality check before submitting:
+
+```bash
+bun run pre-commit
+```
+
+This runs linting, type checking, and all tests.
+
+## What's next
+
+- **[Development Setup](/codepiper/docs/contributing/development/)**: Local environment setup
+- **[Adding a Provider](/codepiper/docs/contributing/adding-provider/)**: Provider implementation guide

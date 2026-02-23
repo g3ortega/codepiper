@@ -55,6 +55,12 @@ jobs:
       - name: Build web
         run: bun run build:web
 
+      - name: Site type check
+        run: bun run check:site
+
+      - name: Build site
+        run: bun run build:site
+
       - name: Packaging check
         run: bun run pack:check:fast
 

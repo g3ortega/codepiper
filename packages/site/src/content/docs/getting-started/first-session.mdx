@@ -1,0 +1,227 @@
+---
+title: Your First Session
+description: A complete walkthrough of creating, interacting with, and managing your first AI coding session.
+section: getting-started
+order: 3
+---
+
+## Before You Start
+
+Make sure the daemon is running with the web dashboard enabled:
+
+```bash
+codepiper daemon --web
+```
+
+You should see:
+
+```
+✓ Daemon started on /tmp/codepiper.sock
+✓ Web dashboard at http://127.0.0.1:3000
+```
+
+If this is your first time, complete the [onboarding flow](/codepiper/docs/getting-started/quick-start/#complete-onboarding) first.
+
+## Creating a Session
+
+### From the CLI
+
+The simplest way to create a session:
+
+```bash
+codepiper start -p claude-code -d ~/projects/my-app
+```
+
+You'll get a session ID back:
+
+```
+✓ Session a1b2c3d4 started (claude-code)
+```
+
+### From the Web Dashboard
+
+1. Open `http://localhost:3000`
+2. Navigate to **Sessions** in the sidebar
+3. Click **Create Session**
+4. Fill in the form:
+   - **Provider**: Claude Code or Codex
+   - **Working directory**: Absolute path to your project
+   - **Billing mode**: Subscription (default) or API
+5. Click **Create**
+
+The session appears in the list and starts immediately.
+
+### Session Options
+
+You can customize sessions with additional flags:
+
+```bash
+# Use API billing (pay-per-token, needed for automated workflows)
+codepiper start -p claude-code -d ~/project --billing api
+
+# Create a git worktree for isolated work
+codepiper start -p claude-code -d ~/project --worktree --create-branch feature/refactor
+
+# Attach encrypted environment variables
+codepiper start -p claude-code -d ~/project --env-set my-api-keys
+
+# Pass arguments directly to the provider
+codepiper start -p claude-code -d ~/project -- --model opus
+```
+
+See [Sessions & Providers](/codepiper/docs/concepts/sessions/) for the full options reference.
+
+## Interacting with Your Session
+
+Once a session is running, you have several ways to interact with it.
+
+### Web Terminal
+
+Click on the session in the dashboard to open the session detail view. The **Terminal** tab shows a live terminal feed powered by xterm.js. You can:
+
+- Type directly into the terminal
+- Paste or drag-and-drop images for visual context
+- Watch the agent's output in real time
+- Switch between the **Tmux**, **Conversation**, and **Attach** sub-views
+
+The terminal polls tmux output and syncs cursor position, so what you see matches the actual session state.
+
+### CLI Attach
+
+Jump into the session's terminal from any shell:
+
+```bash
+codepiper attach a1b2c3d4
+```
+
+This gives you a live, interactive connection. Keyboard input is forwarded directly to the tmux session. Press `Ctrl+B D` to detach without stopping the session.
+
+For read-only monitoring:
+
+```bash
+codepiper attach a1b2c3d4 --follow
+```
+
+### Send Text
+
+Send a prompt without attaching:
+
+```bash
+codepiper send a1b2c3d4 "refactor the auth module to use Argon2"
+```
+
+By default, a newline is appended (like pressing Enter). To send partial text:
+
+```bash
+codepiper send a1b2c3d4 --no-newline "partial input"
+```
+
+### Send Key Sequences
+
+For interactive control:
+
+```bash
+codepiper keys a1b2c3d4 ctrl+c       # Cancel current operation
+codepiper keys a1b2c3d4 enter         # Press Enter
+codepiper keys a1b2c3d4 escape up up enter  # Navigate a menu
+```
+
+### Send Images
+
+Provide visual context alongside a prompt:
+
+```bash
+codepiper send a1b2c3d4 --image screenshot.png "what's wrong with this layout?"
+```
+
+## Observing Your Session
+
+### Tail Output
+
+Stream raw terminal output:
+
+```bash
+codepiper tail a1b2c3d4 --follow
+```
+
+### View Events
+
+Watch hook events and system events:
+
+```bash
+codepiper logs a1b2c3d4 --follow --source hook
+```
+
+### Check Status
+
+List all sessions and their states:
+
+```bash
+codepiper sessions
+```
+
+## Managing Sessions
+
+### Stop
+
+Gracefully stop a session:
+
+```bash
+codepiper stop a1b2c3d4
+```
+
+The agent receives a stop signal and the tmux session is preserved. You can resume later.
+
+### Kill
+
+Force-kill a stuck session:
+
+```bash
+codepiper kill a1b2c3d4
+```
+
+This terminates the tmux session immediately.
+
+### Resume
+
+Resume a stopped session (via the web dashboard or API). The daemon re-attaches to the existing tmux session and restarts event ingestion.
+
+### Model Switching (Claude Code)
+
+Check or change the model mid-session:
+
+```bash
+codepiper model a1b2c3d4              # Show current model
+codepiper model a1b2c3d4 opus         # Switch to Opus
+codepiper model a1b2c3d4 sonnet       # Switch to Sonnet
+codepiper model a1b2c3d4 haiku        # Switch to Haiku
+```
+
+## Session Persistence
+
+Sessions survive everything:
+
+- **Daemon restarts.** The daemon re-adopts orphaned tmux sessions on startup
+- **SSH disconnects.** tmux sessions are detached, not killed
+- **Laptop lid close.** If the daemon is on a server, sessions keep running
+- **Client disconnects.** Sessions are daemon-owned, not client-owned
+
+Stop your laptop, reboot, restart the daemon. Your sessions are still there.
+
+## Git Integration
+
+Each session has a built-in git tab in the web dashboard showing:
+
+- **Status**: Modified, staged, and untracked files
+- **Branches**: All local branches
+- **Log**: Commit history
+- **Diff**: File-level diffs with syntax highlighting
+- **Stage/Unstage**: Add or remove files from the index
+
+All git operations run in the session's working directory (or worktree, if you used `--worktree`).
+
+## What's next
+
+- **[Web Dashboard](/codepiper/docs/getting-started/dashboard/)**: Full dashboard walkthrough
+- **[Permission Policies](/codepiper/docs/concepts/policies/)**: Control what your agents can do
+- **[Architecture](/codepiper/docs/concepts/architecture/)**: How the pieces fit together

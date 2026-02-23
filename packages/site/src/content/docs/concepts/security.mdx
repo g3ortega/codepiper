@@ -1,0 +1,210 @@
+---
+title: Security Model
+description: How CodePiper protects your sessions, credentials, and data. Transport security, authentication, and encryption.
+section: concepts
+order: 4
+---
+
+## Design Principles
+
+CodePiper is designed for a **single-user, self-hosted** deployment model. Security is layered:
+
+1. **Transport.** Unix socket or authenticated HTTP
+2. **Authentication.** Password + TOTP MFA
+3. **Encryption.** AES-GCM for stored secrets
+4. **Isolation.** API key scrubbing, session sandboxing
+5. **Auditing.** Full decision trail for all policy actions
+
+Everything runs on your machine. No cloud accounts, no telemetry, no third-party services.
+
+## Transport Security
+
+### Unix Socket (CLI)
+
+The CLI communicates with the daemon via a Unix socket at `/tmp/codepiper.sock`.
+
+- File permissions restrict access to the current user (mode `0600`)
+- No network exposure; only processes on the same machine can connect
+- No authentication needed (the OS enforces access control)
+
+### HTTP (Web Dashboard)
+
+When started with `--web`, the daemon listens on an HTTP port (default 3000):
+
+- All API requests require a valid **session cookie** (set after login)
+- **CSRF protection** via Origin/Referer header validation
+- **WebSocket** connections require the same authentication
+- **Rate limiting** on login attempts (per IP)
+
+> **For remote access**, always use an SSH tunnel or a reverse proxy with TLS. Never expose the HTTP port directly to the internet.
+
+## Authentication
+
+### Bootstrap Flow
+
+On first run, the daemon requires a one-time setup:
+
+```
+1. Start daemon          → Prints bootstrap password to stdout
+2. Open web dashboard    → Enter bootstrap password
+3. Set your password     → 8+ characters, hashed with Argon2
+4. Set up MFA            → Scan TOTP QR code, verify 6-digit code
+5. Normal login          → Password + TOTP code
+```
+
+MFA setup is **mandatory**. You cannot skip it during onboarding.
+
+### Password
+
+- Hashed with **Argon2** (memory-hard, timing-safe)
+- Minimum 8 characters
+- Can be reset from CLI only: `codepiper auth reset-password`
+- The `--generate` flag creates a secure random password
+
+### TOTP MFA
+
+- Standard 30-second TOTP codes (compatible with any authenticator app)
+- Setup requires scanning a QR code and verifying a code
+- Can be reset from CLI only: `codepiper auth reset-mfa`
+- Resetting MFA also revokes all active sessions
+
+### Session Tokens
+
+- Cookie-based sessions with 7-day expiry
+- Onboarding sessions (MFA setup) have 24-hour expiry
+- Secure cookie flag is set when served over HTTPS
+- All sessions can be listed and revoked:
+
+```bash
+codepiper auth sessions        # List active sessions
+codepiper auth revoke-all      # Revoke all sessions
+```
+
+### CLI-Only Reset Operations
+
+Password and MFA resets are restricted to the CLI (Unix socket access) for security:
+
+```bash
+# Reset password (interactive)
+codepiper auth reset-password
+
+# Reset password (auto-generate)
+codepiper auth reset-password --generate
+
+# Reset MFA (requires confirmation)
+codepiper auth reset-mfa
+```
+
+These operations cannot be performed through the web dashboard.
+
+## Environment Security
+
+### API Key Scrubbing
+
+In **subscription** billing mode (the default), CodePiper scrubs these environment variables from the session:
+
+| Variable | Reason |
+|----------|--------|
+| `ANTHROPIC_API_KEY` | Prevents accidental API billing; forces Max plan |
+| `CLAUDECODE` | Controls session nesting; always scrubbed |
+
+In **API** billing mode, `ANTHROPIC_API_KEY` is preserved (required for pay-per-token billing).
+
+### Encrypted Environment Sets
+
+Environment sets store sensitive variables (API keys, tokens) encrypted at rest:
+
+- **AES-256-GCM** encryption
+- Encrypted in the database, decrypted only at session spawn time
+- Variables are masked in the web dashboard UI
+- Create and manage via CLI:
+
+```bash
+# Create an env set with variables
+codepiper env-set create \
+  --name "Production keys" \
+  --var GITHUB_TOKEN=ghp_xxx \
+  --var DATABASE_URL=postgres://...
+
+# Use it when creating a session
+codepiper start -p claude-code -d ~/project --env-set <env-set-id>
+```
+
+## Hook Authentication
+
+Claude Code hooks forward events to the daemon via `codepiper hook-forward`. Each hook call includes:
+
+- `CODEPIPER_UNIX_SOCK`: socket path
+- `CODEPIPER_SESSION`: session UUID
+- `CODEPIPER_SECRET`: shared secret for authentication
+
+The daemon validates the secret on every hook event to prevent spoofed events.
+
+## WebSocket Security
+
+WebSocket connections (`/ws` on port 9999):
+
+- Require authentication (same cookie-based session as HTTP)
+- **Origin gating** prevents cross-origin connections
+- Rate limiting on control operations (subscribe/unsubscribe)
+- Separate rate limits for PTY input channels
+
+## Policy Audit Trail
+
+Every permission decision is logged immutably:
+
+```bash
+codepiper audit --limit 5
+```
+
+Each entry includes:
+- Timestamp
+- Session ID
+- Tool name and arguments
+- Matched policy and rule
+- Decision (allow/deny/ask)
+- Reason
+
+The audit log is stored in SQLite and accessible via the web dashboard or API.
+
+## Recommendations
+
+### Local Development
+
+For local-only use, the default configuration is secure:
+
+- Unix socket restricts access to your user
+- Web dashboard is bound to `127.0.0.1`
+- No additional configuration needed
+
+### Remote Access
+
+If you need to access CodePiper from another machine:
+
+```bash
+# Recommended: SSH tunnel (simplest, most secure)
+ssh -L 3000:localhost:3000 -L 9999:localhost:9999 your-server
+
+# Then open http://localhost:3000 on your local machine
+```
+
+For persistent remote access, use a reverse proxy with TLS:
+
+- Nginx or Caddy with SSL certificate
+- Set `TRUST_PROXY_HEADERS=true` and `FORCE_SECURE_COOKIES=true`
+- Configure `ALLOWED_ORIGINS` to restrict access
+
+### Production Hardening
+
+- Use **API billing mode** for automated workflows (required by Anthropic ToS)
+- Set the **default policy action** to `deny` instead of `ask`
+- Create explicit **allow rules** for known-safe operations
+- Regularly review the **audit log** for unexpected tool usage
+- Use **env sets** instead of shell environment for sensitive variables
+- Keep the daemon and providers updated
+
+## What's Next
+
+- [Architecture Overview](/codepiper/docs/concepts/architecture/): System topology
+- [Sessions & Providers](/codepiper/docs/concepts/sessions/): Provider abstraction
+- [Permission Policies](/codepiper/docs/concepts/policies/): Policy engine details

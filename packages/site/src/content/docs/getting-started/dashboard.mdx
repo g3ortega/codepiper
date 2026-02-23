@@ -1,0 +1,135 @@
+---
+title: Web Dashboard
+description: A page-by-page guide to the CodePiper web dashboard, from session management to analytics.
+section: getting-started
+order: 4
+---
+
+## Starting the Dashboard
+
+Launch the daemon with the `--web` flag:
+
+```bash
+codepiper daemon --web
+```
+
+The dashboard is served at `http://127.0.0.1:3000` by default. To use a custom port:
+
+```bash
+codepiper daemon --web --port 8080
+```
+
+The daemon also starts a WebSocket server on port 9999 for real-time updates (terminal streaming, live events).
+
+## First-Time Setup
+
+On the first visit, the dashboard walks you through a three-step onboarding:
+
+1. **Bootstrap password.** Enter the one-time password printed to the terminal when the daemon started
+2. **Set your password.** Choose a permanent password (minimum 8 characters, hashed with Argon2)
+3. **Configure MFA.** Scan the TOTP QR code with your authenticator app, enter the 6-digit verification code, and save your recovery codes
+
+MFA is mandatory. After setup, every login requires your password plus a TOTP code.
+
+## Dashboard Pages
+
+### Sessions
+
+The main workspace. From here you can:
+
+- **View all sessions** with status indicators (Running, Stopped, Crashed, Waiting)
+- **Create new sessions** with the provider, directory, billing mode, and env set options
+- **Click into a session** to open the detail view
+
+#### Session Detail View
+
+Each session has a tabbed interface:
+
+- **Terminal**: Live terminal output (xterm.js), with sub-views for Tmux output, Conversation rendering, and interactive Attach mode
+- **Git**: Branch list, commit log, file diffs, stage/unstage controls
+- **Policies**: Policies applied to this session
+- **Logs**: Hook events and system events
+- **Events**: Raw event stream with filtering
+
+The terminal sub-tab shows a "live" indicator when the session is actively streaming output.
+
+### Analytics
+
+Token usage and cost tracking across all sessions:
+
+- **Token usage chart**: Input, output, and cache read tokens over time
+- **Model distribution**: Breakdown by model (Sonnet, Opus, Haiku)
+- **Cache hit rate**: Percentage of tokens served from cache
+- **Cost estimation**: Estimated API cost based on token counts and model pricing
+- **Activity timeline**: Session creation and event density over time
+- **Tool usage**: Most-used tools across all sessions
+
+Analytics data is extracted from Claude Code transcripts (JSONL). Codex sessions have limited analytics (PTY output only).
+
+### Policies
+
+Manage permission policies and review the audit log:
+
+- **Policy list**: Create, edit, enable/disable, and delete policies
+- **Policy sets**: Group policies for easy assignment to sessions
+- **Audit log**: Every permission decision with timestamp, session, tool, matched rule, and outcome
+
+See [Permission Policies](/codepiper/docs/concepts/policies/) for details on rule syntax and evaluation.
+
+### Workflows
+
+Create and run multi-session workflows:
+
+- **Workflow editor**: Define workflows in YAML or JSON with session steps, conditionals, parallel execution, and loops
+- **Execution view**: Watch workflow progress in real time, inspect step results
+- **Execution history**: Past runs with status and logs
+
+### Settings
+
+Configure the daemon and manage resources:
+
+- **Daemon settings**: Session preservation, default policy action (ask/deny), SSH agent forwarding, terminal feature flags
+- **Workspaces**: Named scopes for organizing sessions
+- **Environment sets**: Encrypted variable bundles (AES-256-GCM) for API keys and secrets
+- **Security**: Password change, MFA management, active session list with revoke controls
+
+## Mobile and PWA
+
+The dashboard is a responsive PWA (Progressive Web App). On mobile devices:
+
+- The layout adapts to smaller screens with a collapsible sidebar
+- You can **install it as an app** from the browser menu ("Add to Home Screen")
+- Push notifications alert you when sessions finish, crash, or need attention
+
+The PWA manifest configures standalone display mode with the CodePiper icon and dark theme.
+
+## Remote Access
+
+The dashboard binds to `127.0.0.1` by default. For access from other devices:
+
+### SSH Tunnel (simplest)
+
+```bash
+ssh -L 3000:localhost:3000 -L 9999:localhost:9999 your-server
+```
+
+Then open `http://localhost:3000` on your local machine.
+
+### Reverse Proxy
+
+For persistent remote access, put Nginx or Caddy in front of the daemon with TLS:
+
+```bash
+# Set these environment variables for the daemon
+TRUST_PROXY_HEADERS=true
+FORCE_SECURE_COOKIES=true
+ALLOWED_ORIGINS=https://codepiper.yourdomain.com
+```
+
+See [Remote Access](/codepiper/docs/guides/remote-access/) for complete configuration examples.
+
+## What's next
+
+- **[Multi-Device Setup](/codepiper/docs/guides/multi-device/)**: Access sessions from any device
+- **[Remote Access](/codepiper/docs/guides/remote-access/)**: SSH tunnels and reverse proxy configuration
+- **[Security Model](/codepiper/docs/concepts/security/)**: Authentication and encryption details

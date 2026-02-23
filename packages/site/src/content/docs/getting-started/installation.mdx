@@ -1,0 +1,180 @@
+---
+title: Installation
+description: System requirements, platform-specific setup, and verification for CodePiper.
+section: getting-started
+order: 2
+---
+
+## System Requirements
+
+CodePiper runs on **macOS** and **Linux** with the following dependencies:
+
+| Dependency | Minimum Version | Purpose |
+|-----------|----------------|---------|
+| [Bun](https://bun.sh) | 1.3.5 | JavaScript runtime |
+| [tmux](https://github.com/tmux/tmux) | 3.0 | Terminal session management |
+| At least one AI coding CLI | Latest | The agent that runs inside sessions |
+
+### Supported Platforms
+
+| OS | Architecture |
+|----|-------------|
+| macOS (Darwin) | x64 (Intel), arm64 (Apple Silicon) |
+| Linux | x64, arm64 |
+
+> Windows is not currently supported. Use WSL2 with a Linux distribution for Windows machines.
+
+## Install Bun
+
+If you don't have Bun installed:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+Verify the version:
+
+```bash
+bun --version
+# Should output 1.3.5 or higher
+```
+
+## Install tmux
+
+### macOS
+
+```bash
+brew install tmux
+```
+
+### Ubuntu / Debian
+
+```bash
+sudo apt update && sudo apt install tmux
+```
+
+### Fedora / RHEL
+
+```bash
+sudo dnf install tmux
+```
+
+Verify the version:
+
+```bash
+tmux -V
+# Should output tmux 3.0 or higher
+```
+
+> CodePiper works with tmux 2.x but some features may behave differently. tmux 3.0+ is recommended.
+
+## Install a Provider
+
+You need at least one AI coding CLI installed on your system.
+
+### Claude Code (recommended)
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+Verify:
+
+```bash
+claude --version
+```
+
+### Codex CLI
+
+```bash
+npm install -g @openai/codex
+```
+
+Verify:
+
+```bash
+codex --version
+```
+
+You can install both. CodePiper lets you choose the provider when creating each session.
+
+## Install CodePiper
+
+### From npm (recommended)
+
+```bash
+npm i -g codepiper
+```
+
+### From source
+
+```bash
+git clone https://github.com/g3ortega/codepiper.git
+cd codepiper
+bun install
+bun link
+```
+
+The `bun link` step makes the `codepiper` command available globally.
+
+## Verify Installation
+
+Run the built-in diagnostics:
+
+```bash
+codepiper doctor
+```
+
+This checks:
+
+- **Platform**: OS and architecture compatibility
+- **Bun version**: Meets minimum requirement
+- **tmux version**: Installed and 3.0+
+- **Provider binaries**: Whether `claude` and/or `codex` are found in PATH
+- **API key status**: Whether `ANTHROPIC_API_KEY` is set (needed for API billing mode)
+- **Daemon status**: Whether the daemon is currently running
+
+A healthy output looks like this:
+
+```
+✓ Platform: darwin arm64
+✓ Bun: 1.3.5
+✓ tmux: 3.5
+✓ claude: found
+✓ codex: found
+✓ ANTHROPIC_API_KEY: set
+✗ Daemon: not running
+```
+
+The daemon not running is expected if you haven't started it yet.
+
+## Updating
+
+### npm install
+
+```bash
+npm update -g codepiper
+```
+
+### From source
+
+```bash
+cd codepiper
+git pull
+bun install
+```
+
+After updating, restart the daemon if it's running:
+
+```bash
+codepiper daemon stop
+codepiper daemon --web
+```
+
+The daemon will re-adopt any running tmux sessions from the previous version.
+
+## What's next
+
+- **[Quick Start](/codepiper/docs/getting-started/quick-start/)**: Zero-to-session in under 5 minutes
+- **[Your First Session](/codepiper/docs/getting-started/first-session/)**: Deep dive into session creation and interaction
+- **[Troubleshooting](/codepiper/docs/guides/troubleshooting/)**: Common issues and fixes

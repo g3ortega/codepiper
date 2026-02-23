@@ -1,0 +1,313 @@
+---
+title: CLI Commands
+description: Complete reference for all CodePiper CLI commands.
+section: api
+order: 3
+---
+
+## Overview
+
+The CodePiper CLI communicates with the daemon over a Unix socket at `/tmp/codepiper.sock`. Most commands require the daemon to be running.
+
+```bash
+codepiper <command> [options]
+```
+
+## Daemon
+
+### `daemon`
+
+Start the daemon process.
+
+```bash
+codepiper daemon [--web] [--port <port>] [--host <host>]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--web` | Enable the web dashboard |
+| `--port` | HTTP port (default: 3000) |
+| `--host` | Bind address (default: 127.0.0.1) |
+
+### `daemon stop`
+
+Stop the running daemon.
+
+### `daemon status`
+
+Check if the daemon is running.
+
+## Sessions
+
+### `start`
+
+Create and start a new session.
+
+```bash
+codepiper start -p <provider> -d <directory> [options] [-- <provider-args>]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-p, --provider` | Required. `claude-code` or `codex` |
+| `-d, --dir` | Working directory (default: cwd) |
+| `--billing` | `subscription` (default) or `api` |
+| `--dangerous` | Bypass all policy checks |
+| `--worktree` | Create git worktree |
+| `--create-branch` | Branch name for worktree |
+| `--env-set` | Environment set ID (repeatable) |
+| `--workspace` | Workspace ID |
+| `--validate` | Dry-run without creating |
+| `-- [args]` | Pass-through args to provider |
+
+### `sessions`
+
+List all sessions.
+
+```bash
+codepiper sessions
+```
+
+### `stop`
+
+Gracefully stop a session.
+
+```bash
+codepiper stop <session-id>
+```
+
+### `kill`
+
+Force kill a session.
+
+```bash
+codepiper kill <session-id>
+```
+
+### `resize`
+
+Resize a session's terminal.
+
+```bash
+codepiper resize <session-id> <cols> <rows>
+```
+
+## Interaction
+
+### `attach`
+
+Attach to a session's terminal.
+
+```bash
+codepiper attach <session-id> [--follow]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--follow` | Read-only mode (no input forwarding) |
+
+Press `Ctrl+B D` to detach without stopping the session.
+
+### `send`
+
+Send text to a session.
+
+```bash
+codepiper send <session-id> [--no-newline] [--image <path>] <text>
+```
+
+| Flag | Description |
+|------|-------------|
+| `--no-newline` | Don't append a newline |
+| `--image` | Attach an image file |
+
+### `keys`
+
+Send key sequences to a session.
+
+```bash
+codepiper keys <session-id> <key> [<key> ...]
+```
+
+Supported keys: `enter`, `escape`, `tab`, `ctrl+c`, `ctrl+d`, `ctrl+r`, `up`, `down`, `left`, `right`, and more.
+
+### `slash`
+
+Execute a slash command in a session.
+
+```bash
+codepiper slash <session-id> <command>
+```
+
+### `tail`
+
+Tail raw session output.
+
+```bash
+codepiper tail <session-id> [--follow]
+```
+
+## Model
+
+### `model`
+
+Get or switch the Claude Code model.
+
+```bash
+codepiper model <session-id>           # Get current model
+codepiper model <session-id> <model>   # Switch model
+```
+
+Model aliases: `sonnet`, `opus`, `haiku`, `opusplan`. Also accepts full model IDs like `claude-sonnet-4-5`.
+
+## Policies
+
+### `policy`
+
+Manage permission policies.
+
+```bash
+codepiper policy list
+codepiper policy get <policy-id>
+codepiper policy create --name <name> --rules '<json>' [--priority <n>]
+codepiper policy update <policy-id> [--name <name>] [--rules '<json>'] [--priority <n>]
+codepiper policy delete <policy-id>
+codepiper policy toggle <policy-id>
+codepiper policy default <ask|deny>
+```
+
+### `policy-set`
+
+Manage policy sets.
+
+```bash
+codepiper policy-set list
+codepiper policy-set get <set-id>
+codepiper policy-set create --name <name>
+codepiper policy-set update <set-id> --name <name>
+codepiper policy-set delete <set-id>
+codepiper policy-set add-policy <set-id> <policy-id>
+codepiper policy-set remove-policy <set-id> <policy-id>
+```
+
+### `audit`
+
+View the policy decision audit log.
+
+```bash
+codepiper audit [--session <session-id>] [--limit <n>]
+```
+
+## Analytics
+
+### `analytics`
+
+View analytics and cost data.
+
+```bash
+codepiper analytics [overview] [--days <1|7|30|0>]
+codepiper analytics tokens [--days <n>]
+codepiper analytics tools [--days <n>]
+codepiper analytics activity [--days <n>]
+codepiper analytics sessions [--days <n>]
+```
+
+`--days 0` means all time.
+
+## Workflows
+
+### `workflow`
+
+Manage and run workflows.
+
+```bash
+codepiper workflow create <file> [--id <id>]
+codepiper workflow list
+codepiper workflow show <workflow-id>
+codepiper workflow run <workflow-id> [--var KEY=VALUE ...]
+codepiper workflow status <execution-id>
+codepiper workflow cancel <execution-id>
+codepiper workflow logs <execution-id> [--follow]
+```
+
+## Authentication
+
+### `auth`
+
+Manage authentication.
+
+```bash
+codepiper auth status
+codepiper auth reset-password [--generate]
+codepiper auth reset-mfa
+codepiper auth sessions
+codepiper auth revoke-all
+```
+
+`reset-password` and `reset-mfa` are CLI-only operations (Unix socket access required).
+
+## Settings
+
+### `workspace`
+
+Manage workspaces.
+
+```bash
+codepiper workspace list
+codepiper workspace get <workspace-id>
+codepiper workspace create --name <name>
+codepiper workspace update <workspace-id> --name <name>
+codepiper workspace delete <workspace-id>
+```
+
+### `env-set`
+
+Manage encrypted environment sets.
+
+```bash
+codepiper env-set list
+codepiper env-set get <env-set-id>
+codepiper env-set create --name <name> --var KEY=VALUE [--var KEY=VALUE ...]
+codepiper env-set update <env-set-id> --name <name>
+codepiper env-set delete <env-set-id>
+```
+
+## Observability
+
+### `logs`
+
+View session event logs.
+
+```bash
+codepiper logs <session-id> [--follow] [--source <hook|transcript|pty>]
+```
+
+### `providers`
+
+List supported providers and their capabilities.
+
+```bash
+codepiper providers
+```
+
+### `doctor`
+
+Run diagnostics.
+
+```bash
+codepiper doctor
+```
+
+Checks: platform, Bun version, tmux version, provider binaries, API key status, daemon connectivity.
+
+## Internal
+
+### `hook-forward`
+
+Forward hook events from Claude Code to the daemon. This command is not meant to be called directly; it's configured in the per-session settings overlay.
+
+```bash
+codepiper hook-forward
+```
+
+Reads hook event data from stdin and forwards it to the daemon via Unix socket.

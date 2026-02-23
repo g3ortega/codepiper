@@ -1,0 +1,22 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import NavBar from "@/components/shared/NavBar.astro";
+import Footer from "@/components/shared/Footer.astro";
+import ScrollProgress from "@/components/shared/ScrollProgress.astro";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <ScrollProgress />
+  <NavBar variant="landing" />
+  <main>
+    <slot />
+  </main>
+  <Footer />
+</BaseLayout>

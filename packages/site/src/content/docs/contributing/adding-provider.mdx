@@ -1,0 +1,154 @@
+---
+title: Adding a Provider
+description: How to extend CodePiper with a new AI coding tool provider.
+section: contributing
+order: 2
+---
+
+## Overview
+
+CodePiper uses a provider abstraction to support different AI coding tools. Each provider implements a standard interface that the daemon's SessionManager calls to spawn, control, and monitor sessions.
+
+Currently shipped providers:
+
+- **claude-code**: Full integration with hooks, transcript tailing, and model switching
+- **codex**: Simpler integration with input-preflight policy enforcement
+
+## The Provider Interface
+
+Every provider must implement this interface:
+
+```typescript
+interface Provider {
+  id: ProviderId;
+  startSession(opts: {
+    id: string;
+    cwd: string;
+    env: Record<string, string>;
+    args?: string[];
+    model?: string;
+    billingMode?: "subscription" | "api";
+  }): Promise<SessionHandle>;
+  sendText(sessionId: string, text: string): Promise<void>;
+  sendKeys(sessionId: string, keys: string[]): Promise<void>;
+  stopSession(sessionId: string): Promise<void>;
+  onEvent(cb: (event: ProviderEvent) => void): void;
+  switchModel?(sessionId: string, model: string): Promise<void>;
+  getCurrentModel?(sessionId: string): string | undefined;
+}
+```
+
+### Required Methods
+
+| Method | Description |
+|--------|-------------|
+| `startSession` | Spawn a new tmux session with the provider CLI |
+| `sendText` | Send text input via `tmux send-keys -l` |
+| `sendKeys` | Send key sequences via `tmux send-keys` |
+| `stopSession` | Clean up the tmux session |
+| `onEvent` | Register a callback for provider events |
+
+### Optional Methods
+
+| Method | Description |
+|--------|-------------|
+| `switchModel` | Change the active model mid-session |
+| `getCurrentModel` | Return the current model identifier |
+
+## Provider Capabilities
+
+Providers declare their capabilities so the daemon and UI can adapt:
+
+```typescript
+interface ProviderCapabilities {
+  nativeHooks: boolean;       // Can emit structured hook events
+  transcriptTailing: boolean; // Produces JSONL transcripts
+  modelSwitching: boolean;    // Supports mid-session model changes
+  dangerousMode: boolean;     // Has a "skip permissions" flag
+  policyChannel: "native-hooks" | "input-preflight";
+  metricsChannel: "transcript" | "pty";
+}
+```
+
+The `policyChannel` determines how the daemon enforces permission policies:
+
+- **native-hooks**: The provider emits PermissionRequest events; the daemon responds via tmux keystrokes
+- **input-preflight**: The daemon intercepts terminal input and checks against policies before forwarding
+
+## Implementation Steps
+
+### 1. Define the provider
+
+Create a new file in `packages/daemon/src/providers/` (or a new package under `packages/providers/`):
+
+```typescript
+import type { Provider, ProviderCapabilities } from "@codepiper/core";
+
+export const myProvider: Provider = {
+  id: "my-tool",
+
+  async startSession(opts) {
+    // 1. Prepare environment variables
+    // 2. Build the CLI command
+    // 3. Spawn a tmux session: tmux new-session -d -s codepiper-<id> <command>
+    // 4. Return a SessionHandle
+  },
+
+  async sendText(sessionId, text) {
+    // tmux send-keys -t codepiper-<sessionId> -l "text"
+  },
+
+  async sendKeys(sessionId, keys) {
+    // tmux send-keys -t codepiper-<sessionId> <key>
+  },
+
+  async stopSession(sessionId) {
+    // tmux kill-session -t codepiper-<sessionId>
+  },
+
+  onEvent(cb) {
+    // Store callback for emitting events
+  },
+};
+```
+
+### 2. Register the provider
+
+Add your provider to the provider registry in the daemon startup:
+
+```typescript
+sessionManager.registerProvider(myProvider);
+```
+
+### 3. Handle policy enforcement
+
+Choose your policy channel:
+
+- If your tool supports hooks (structured event output), implement `native-hooks` and emit PermissionRequest events
+- If not, the daemon will use `input-preflight` to intercept terminal input
+
+### 4. Add CLI support
+
+Update `packages/cli/src/commands/start.ts` to accept your provider ID and any provider-specific flags.
+
+## Testing
+
+Test your provider by:
+
+1. Starting a session: `codepiper start -p my-tool -d ~/test-project`
+2. Sending input: `codepiper send <id> "hello"`
+3. Checking output: `codepiper tail <id> --follow`
+4. Verifying policies: Create a deny rule and confirm it's enforced
+5. Stopping: `codepiper stop <id>`
+
+## Codex as Reference
+
+The Codex provider is the simplest implementation and makes a good reference. It uses `input-preflight` policy enforcement and has no hooks or transcript tailing.
+
+The Claude Code provider is the most complete implementation, with hooks, transcript tailing, settings overlays, and model switching.
+
+## What's next
+
+- **[Development Setup](/codepiper/docs/contributing/development/)**: Local development environment
+- **[Testing Guide](/codepiper/docs/contributing/testing/)**: Writing and running tests
+- **[Architecture](/codepiper/docs/concepts/architecture/)**: How providers fit into the system

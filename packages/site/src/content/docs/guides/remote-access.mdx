@@ -1,0 +1,161 @@
+---
+title: Remote Access
+description: Three ways to access CodePiper from another machine. SSH tunnel, Nginx reverse proxy, or Caddy.
+section: guides
+order: 4
+---
+
+## Overview
+
+By default, the CodePiper dashboard binds to `127.0.0.1:3000` and the WebSocket server to port `9999`. For remote access, you need to expose both ports securely.
+
+There are three approaches, from simplest to most production-ready:
+
+1. **SSH tunnel** (no setup, encrypted, temporary)
+2. **Nginx reverse proxy** (persistent, TLS, custom domain)
+3. **Caddy reverse proxy** (persistent, automatic TLS, simpler config)
+
+## Option 1: SSH Tunnel
+
+The quickest way. No server configuration needed.
+
+```bash
+ssh -L 3000:localhost:3000 -L 9999:localhost:9999 user@your-server
+```
+
+Then open `http://localhost:3000` locally. The tunnel is active as long as the SSH session is open.
+
+### Persistent Tunnel
+
+Add to `~/.ssh/config`:
+
+```
+Host codepiper-tunnel
+  HostName your-server.example.com
+  User deploy
+  LocalForward 3000 localhost:3000
+  LocalForward 9999 localhost:9999
+  ServerAliveInterval 60
+  ServerAliveCountMax 3
+```
+
+Connect with `ssh codepiper-tunnel`. The `ServerAlive` settings keep the tunnel from dropping on idle connections.
+
+### Autossh
+
+For unattended tunnels that automatically reconnect:
+
+```bash
+autossh -M 0 -f -N codepiper-tunnel
+```
+
+## Option 2: Nginx Reverse Proxy
+
+For persistent remote access with TLS and a custom domain.
+
+### Prerequisites
+
+- A domain name pointing to your server (e.g. `codepiper.example.com`)
+- Nginx installed
+- SSL certificate (Let's Encrypt via certbot, or your own)
+
+### Nginx Configuration
+
+```nginx
+upstream codepiper_http {
+    server 127.0.0.1:3000;
+}
+
+upstream codepiper_ws {
+    server 127.0.0.1:9999;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name codepiper.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/codepiper.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/codepiper.example.com/privkey.pem;
+
+    # HTTP API and dashboard
+    location / {
+        proxy_pass http://codepiper_http;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # WebSocket
+    location /ws {
+        proxy_pass http://codepiper_ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400;
+    }
+}
+
+server {
+    listen 80;
+    server_name codepiper.example.com;
+    return 301 https://$host$request_uri;
+}
+```
+
+### Daemon Environment
+
+Set these variables when starting the daemon:
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://codepiper.example.com \
+codepiper daemon --web
+```
+
+- `TRUST_PROXY_HEADERS`: Tells the daemon to read `X-Forwarded-*` headers for client IP and protocol detection
+- `FORCE_SECURE_COOKIES`: Sets the `Secure` flag on session cookies (required for HTTPS)
+- `ALLOWED_ORIGINS`: Restricts WebSocket and CSRF origin checks to your domain
+
+## Option 3: Caddy Reverse Proxy
+
+Caddy handles TLS certificates automatically via Let's Encrypt.
+
+### Caddyfile
+
+```
+codepiper.example.com {
+    reverse_proxy /ws 127.0.0.1:9999
+    reverse_proxy * 127.0.0.1:3000
+}
+```
+
+That's it. Caddy automatically obtains and renews certificates. The same daemon environment variables apply:
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://codepiper.example.com \
+codepiper daemon --web
+```
+
+## Security Considerations
+
+When exposing CodePiper to the internet:
+
+- **Always use TLS.** Never expose the HTTP port directly. The dashboard transmits session cookies and terminal data.
+- **Set `ALLOWED_ORIGINS`.** This prevents cross-site WebSocket hijacking.
+- **Use strong passwords and MFA.** Both are enforced by default, but choosing a long password matters more when the login page is internet-facing.
+- **Consider IP restrictions.** Use firewall rules or Nginx `allow`/`deny` directives to limit access to known IPs.
+- **Review the audit log.** Check `codepiper audit` regularly for unexpected activity.
+
+## What's next
+
+- **[Multi-Device Setup](/codepiper/docs/guides/multi-device/)**: Access from phone, tablet, and other devices
+- **[Security Model](/codepiper/docs/concepts/security/)**: Full security architecture
+- **[Troubleshooting](/codepiper/docs/guides/troubleshooting/)**: Common issues and fixes

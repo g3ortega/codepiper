@@ -1,0 +1,80 @@
+---
+const rows = [
+  { cap: "Native hook events", claude: true, codex: false },
+  { cap: "Transcript tailing", claude: true, codex: false },
+  { cap: "Model switching", claude: true, codex: false },
+  { cap: "Image attach & paste", claude: true, codex: true },
+  { cap: "Session notifications", claude: true, codex: false },
+  { cap: "Dangerous mode", claude: true, codex: true },
+  { cap: "Session resume", claude: true, codex: true },
+  { cap: "Token analytics", claude: true, codex: false },
+  { cap: "Policy enforcement", claude: "Hooks", codex: "Input preflight" },
+];
+---
+
+<section class="py-24 px-4 reveal">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-16">
+      <h2 class="text-h2 font-bold tracking-tight text-foreground">
+        Multi-provider. <span class="text-primary">One control plane.</span>
+      </h2>
+      <p class="mt-4 text-lg text-muted max-w-2xl mx-auto">
+        Run different AI coding tools side by side. Same API. Same policies. Same dashboard.
+      </p>
+    </div>
+
+    <div class="rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border">
+            <th class="text-left px-5 py-3 text-muted-foreground font-medium">Capability</th>
+            <th class="text-center px-5 py-3">
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber/10 border border-amber/20">
+                <svg class="w-3 h-3 text-amber" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></svg>
+                <span class="text-amber font-semibold text-xs">Claude Code</span>
+              </span>
+            </th>
+            <th class="text-center px-5 py-3">
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-primary/10 border border-primary/20">
+                <svg class="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></svg>
+                <span class="text-primary font-semibold text-xs">Codex CLI</span>
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr class:list={["border-b border-border/50 last:border-0", i % 2 === 0 && "bg-card/20"]}>
+              <td class="px-5 py-3 text-muted">{row.cap}</td>
+              <td class="px-5 py-3 text-center">
+                {row.claude === true ? (
+                  <span class="text-emerald">&check;</span>
+                ) : typeof row.claude === "string" ? (
+                  <span class="text-primary text-xs font-mono">{row.claude}</span>
+                ) : (
+                  <span class="text-muted-foreground">&mdash;</span>
+                )}
+              </td>
+              <td class="px-5 py-3 text-center">
+                {row.codex === true ? (
+                  <span class="text-emerald">&check;</span>
+                ) : typeof row.codex === "string" ? (
+                  <span class="text-secondary text-xs font-mono">{row.codex}</span>
+                ) : (
+                  <span class="text-muted-foreground">&mdash;</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-6 text-center text-sm text-muted">
+      Open provider interface. Extend for any TUI-based AI coding tool.
+      <a href="/codepiper/docs/" class="text-primary hover:underline ml-1">
+        See how &rarr;
+      </a>
+    </p>
+  </div>
+</section>

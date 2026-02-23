@@ -1,0 +1,168 @@
+---
+title: Architecture Overview
+description: Understand how CodePiper's components work together. Daemon, providers, tmux, and the data flow between them.
+section: concepts
+order: 1
+---
+
+## System Topology
+
+CodePiper is a daemon-based orchestrator. A single long-running process (the **daemon**) manages all sessions, policies, analytics, and state while multiple clients connect to it.
+
+```
+┌──────────┐     unix socket     ┌────────────┐     tmux      ┌──────────────┐
+│   CLI    │ ──────────────────▶ │            │ ────────────▶ │  Claude Code │
+└──────────┘                     │   Daemon   │               └──────────────┘
+                                 │            │     tmux      ┌──────────────┐
+┌──────────┐    HTTP / WS        │  (Bun +    │ ────────────▶ │   Codex CLI  │
+│  Web UI  │ ──────────────────▶ │   SQLite)  │               └──────────────┘
+└──────────┘                     │            │
+                                 └─────┬──────┘
+                                       │
+                                  ┌────▼────┐
+                                  │ SQLite  │
+                                  └─────────┘
+```
+
+**CLI** connects over a Unix socket at `/tmp/codepiper.sock`. It's fast, local, and restricted to the current user by default.
+
+**Web UI** connects over HTTP (configurable port) and WebSocket (port 9999). The daemon serves the pre-built React SPA and API endpoints under `/api`.
+
+**Providers** (Claude Code, Codex CLI) run inside tmux sessions. The daemon spawns, monitors, and controls them.
+
+**SQLite** is the single source of truth for all state: sessions, events, policies, analytics, auth, workflows.
+
+## The Daemon
+
+The daemon is the core of CodePiper. When you run `codepiper daemon`, it:
+
+1. Opens a Unix socket for CLI communication
+2. Optionally starts an HTTP server for the web dashboard (`--web`)
+3. Initializes the SQLite database
+4. Starts the WebSocket server for real-time streaming
+5. Adopts any orphaned tmux sessions from previous runs
+
+The daemon is designed to be long-running. It survives terminal closures, SSH disconnects, and laptop lid-closes. Sessions keep running inside tmux whether or not any client is connected.
+
+### Key Services
+
+| Service | Responsibility |
+|---------|---------------|
+| **SessionManager** | Spawn, stop, resume, and track provider sessions via tmux |
+| **PolicyEngine** | Evaluate permission requests against rules, auto-handle decisions |
+| **WorkflowExecutor** | Run multi-step YAML/JSON workflows across sessions |
+| **AuthService** | Password + TOTP authentication, session tokens, rate limiting |
+| **TranscriptTailer** | Parse Claude Code JSONL transcripts for token/tool analytics |
+| **EventBus** | Route events from hooks, transcripts, and PTY to subscribers |
+
+## Session Lifecycle
+
+Every session goes through a predictable lifecycle:
+
+```
+                    ┌──────────┐
+         create ──▶ │ STARTING │
+                    └────┬─────┘
+                         │ tmux session ready
+                    ┌────▼─────┐
+                    │ RUNNING  │◀──── resume
+                    └────┬─────┘
+                    ╱         ╲
+               stop╱           ╲crash
+            ┌─────▼──┐    ┌────▼────┐
+            │ STOPPED │    │ CRASHED │
+            └─────────┘    └─────────┘
+```
+
+When a session is created:
+
+1. The daemon generates a UUID session ID
+2. Environment is prepared (billing mode applied, API keys scrubbed or preserved)
+3. A settings overlay is generated (Claude Code hooks configuration)
+4. A tmux session is spawned: `tmux new-session -d -s codepiper-<uuid>`
+5. The session is persisted to SQLite
+6. Event ingestion begins (hooks, transcripts, PTY capture)
+
+Stopped sessions can be resumed. Crashed sessions are detected and marked automatically.
+
+## Why tmux?
+
+CodePiper uses tmux as the PTY runtime for all providers. This is a deliberate architectural choice:
+
+- **Process isolation.** Each session runs in its own tmux session, independent of the daemon process
+- **Persistence.** tmux sessions survive daemon restarts, SSH disconnects, and terminal closures
+- **Input fidelity.** `tmux send-keys` is indistinguishable from physical keyboard input, which matters for TUI applications like Claude Code
+- **Output capture.** `tmux capture-pane` provides reliable terminal state snapshots for the web dashboard
+- **Universal.** Works with any provider that runs in a terminal
+
+> **Note:** CodePiper recommends tmux 3.0 or later. Run `codepiper doctor` to verify your version.
+
+## Data Flow
+
+### Event Ingestion
+
+Events flow into the daemon from multiple sources:
+
+```
+Claude Code hooks ──▶ SessionStart, Notification,
+                      PermissionRequest, Stop
+
+Transcript tailer ──▶ JSONL parsing → token counts,
+                      tool usage, model info
+
+PTY capture ────────▶ Terminal output snapshots
+                      (for web dashboard)
+
+Statusline ─────────▶ Session state heartbeat
+                      (optional)
+```
+
+All events are persisted to SQLite before processing. This "persist first, process later" design means no data is lost if the daemon restarts.
+
+### Permission Auto-Handling
+
+When Claude Code sends a permission request (via hooks):
+
+1. The **PolicyEngine** evaluates the request against matching rules
+2. The decision is stored in the database with an audit trail
+3. If **allow**: daemon sends `1` + Enter to tmux (approves in Claude Code's UI)
+4. If **deny**: daemon sends `2` + Enter to tmux (rejects)
+5. If **ask**: the request is surfaced to the user via web dashboard or CLI
+
+For providers without native hooks (like Codex), the daemon enforces policies on terminal input channels before dispatch.
+
+## Storage
+
+All state lives in a single SQLite database (via `bun:sqlite`):
+
+| Category | What's Stored |
+|----------|--------------|
+| **Sessions** | ID, provider, working directory, status, timestamps |
+| **Events** | Hook events, transcript entries, PTY snapshots (all timestamped) |
+| **Policies** | Rules, sets, session assignments, decision audit log |
+| **Analytics** | Token usage per request, model distribution, tool usage |
+| **Workflows** | Definitions, execution state, step results |
+| **Auth** | Password hash (Argon2), TOTP secret, session tokens |
+| **Settings** | Workspaces, encrypted environment sets, daemon config |
+
+The database file is created automatically on first run. No external database server is required.
+
+## Web Dashboard Architecture
+
+The web dashboard is a React SPA built with Vite:
+
+- **UI framework**: React + Tailwind CSS + shadcn/ui
+- **Charts**: Recharts for analytics visualization
+- **Terminal**: xterm.js with tmux output polling and cursor sync
+- **Real-time**: WebSocket connection for live session updates
+- **Auth**: Cookie-based sessions with CSRF protection
+
+The dashboard is served by the daemon's HTTP server. No separate web server is needed.
+
+{/* TODO: Add screenshot of the dashboard overview page */}
+
+## What's Next
+
+- [Sessions & Providers](/codepiper/docs/concepts/sessions/): Deep dive into the provider abstraction
+- [Permission Policies](/codepiper/docs/concepts/policies/): How the policy engine works
+- [Security Model](/codepiper/docs/concepts/security/): Authentication, encryption, and access control

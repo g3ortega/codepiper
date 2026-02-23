@@ -1,0 +1,97 @@
+---
+title: Multi-Device Setup
+description: Access your CodePiper sessions from any device. Phone, tablet, laptop, or raw terminal.
+section: guides
+order: 1
+---
+
+## How It Works
+
+CodePiper's daemon owns your sessions. Every client (CLI, web browser, mobile PWA) connects to the same daemon and sees the same sessions. There's no syncing or replication; everyone talks to one source of truth.
+
+This means you can:
+
+- Start a session from your desktop CLI
+- Check progress from your phone's browser
+- Follow up from your tablet on the couch
+- Attach via SSH from a completely different machine
+
+## Local Network Access
+
+If your devices are on the same network (home WiFi, office LAN), the simplest approach is to bind the daemon to your local IP:
+
+```bash
+codepiper daemon --web --host 0.0.0.0
+```
+
+Then open `http://<your-machine-ip>:3000` from any device on the network.
+
+> This exposes the dashboard to your local network. Make sure you trust all devices on it.
+
+The WebSocket server (port 9999) must also be reachable for live terminal updates. Both ports need to be accessible.
+
+## SSH Tunnel (Recommended)
+
+For accessing a remote server securely:
+
+```bash
+ssh -L 3000:localhost:3000 -L 9999:localhost:9999 your-server
+```
+
+Then open `http://localhost:3000` on your local machine. The tunnel encrypts everything and requires no additional configuration.
+
+For persistent tunnels, add to your `~/.ssh/config`:
+
+```
+Host codepiper
+  HostName your-server.example.com
+  LocalForward 3000 localhost:3000
+  LocalForward 9999 localhost:9999
+```
+
+Then just `ssh codepiper` to establish the tunnel.
+
+## Mobile PWA
+
+The web dashboard is a Progressive Web App. On your phone or tablet:
+
+1. Open the dashboard URL in your mobile browser
+2. Log in with your password + TOTP code
+3. Tap the browser menu and select **Add to Home Screen** (or **Install App**)
+4. The app launches in standalone mode with the CodePiper icon
+
+From the PWA you can:
+
+- View all sessions and their status
+- Open the terminal view for any running session
+- Send prompts via the input bar
+- Check analytics and token usage
+- Receive push notifications when sessions need attention
+
+## Push Notifications
+
+Configure per-session notifications to stay informed without keeping the dashboard open:
+
+- **Session complete**: Agent finished its task
+- **Session crashed**: Unexpected termination
+- **Permission request**: Agent needs manual approval (for `ask` policy rules)
+
+Notification preferences are set per session in the dashboard under **Settings > Notifications**.
+
+## CLI from Anywhere
+
+If you have SSH access to the machine running the daemon, you can use the CLI directly:
+
+```bash
+ssh your-server codepiper sessions
+ssh your-server codepiper send a1b2c3d4 "check the test results"
+ssh your-server codepiper attach a1b2c3d4 --follow
+```
+
+Or open an interactive SSH session and use the CLI as normal.
+
+## What's next
+
+- **[Remote Access](/codepiper/docs/guides/remote-access/)**: SSH tunnels and reverse proxy configurations
+- **[Web Dashboard](/codepiper/docs/getting-started/dashboard/)**: Full dashboard walkthrough
+- **[Security Model](/codepiper/docs/concepts/security/)**: Authentication and access control

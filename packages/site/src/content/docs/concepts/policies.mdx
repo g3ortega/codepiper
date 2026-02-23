@@ -1,0 +1,241 @@
+---
+title: Permission Policies
+description: Control what AI agents can and cannot do with CodePiper's rule-based policy engine.
+section: concepts
+order: 3
+---
+
+## Overview
+
+Permission policies let you define **trust boundaries** for your AI coding sessions. When Claude Code requests permission to use a tool (like writing a file or running a command), CodePiper's policy engine evaluates the request and can automatically approve, deny, or escalate it.
+
+Every decision is logged in an audit trail.
+
+## How It Works
+
+```
+Claude Code hooks ──▶ PermissionRequest event
+                             │
+                      ┌──────▼──────┐
+                      │ PolicyEngine │
+                      │  evaluate()  │
+                      └──────┬──────┘
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+         ┌────▼───┐    ┌────▼───┐    ┌────▼───┐
+         │ ALLOW  │    │  DENY  │    │  ASK   │
+         │ "1"⏎   │    │ "2"⏎   │    │ (wait) │
+         └────────┘    └────────┘    └────────┘
+```
+
+1. Claude Code sends a **PermissionRequest** event via hooks
+2. The **PolicyEngine** finds all enabled policies matching the session
+3. Rules are evaluated in **priority order** (highest first)
+4. The **first matching rule** determines the action
+5. The decision is stored in the audit log
+6. For `allow`/`deny`: the daemon sends keystrokes to tmux automatically
+7. For `ask`: the request is surfaced to you via the web dashboard or notifications
+
+## Policy Structure
+
+A policy contains one or more **rules**. Each rule specifies conditions and an action:
+
+```json
+{
+  "name": "Allow file reads, deny shell commands",
+  "enabled": true,
+  "priority": 100,
+  "rules": [
+    {
+      "action": "allow",
+      "tool": "Read",
+      "reason": "Reading files is always safe"
+    },
+    {
+      "action": "deny",
+      "tool": "Bash",
+      "args": { "command": "rm *" },
+      "reason": "Prevent destructive shell commands"
+    },
+    {
+      "action": "ask",
+      "tool": "Bash",
+      "reason": "Review other shell commands manually"
+    }
+  ]
+}
+```
+
+### Rule Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | `"allow"` \| `"deny"` \| `"ask"` | What to do when this rule matches |
+| `tool` | glob pattern | Tool name to match (e.g., `"Bash"`, `"Write"`, `"*"`) |
+| `args` | object of patterns | Match against tool arguments |
+| `cwd` | glob pattern | Match against working directory |
+| `session` | glob pattern | Match against session ID |
+| `reason` | string | Explanation logged in audit trail |
+
+### Pattern Matching
+
+Tool and argument patterns support glob syntax:
+
+| Pattern | Matches |
+|---------|---------|
+| `"Bash"` | Exactly "Bash" |
+| `"*"` | Any tool |
+| `"Write"` | Exactly "Write" |
+| `"!Bash"` | Anything except "Bash" |
+| `["Read", "Glob", "Grep"]` | Any of these three tools |
+
+## Creating Policies
+
+### Via CLI
+
+```bash
+# Create a simple policy
+codepiper policy create \
+  --name "Allow reads" \
+  --rules '[{"action":"allow","tool":"Read"}]' \
+  --priority 100
+
+# Create a session-scoped policy
+codepiper policy create \
+  --name "Sandbox for session X" \
+  --session <session-id> \
+  --rules '[{"action":"deny","tool":"Bash","args":{"command":"rm *"}}]'
+```
+
+### Via Web Dashboard
+
+Navigate to **Policies → Create Policy** to build rules with the visual editor.
+
+{/* TODO: Add screenshot of policy creation UI */}
+
+### Via API
+
+```bash
+curl --unix-socket /tmp/codepiper.sock \
+  -X POST http://localhost/policies \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production safety",
+    "enabled": true,
+    "priority": 200,
+    "rules": [
+      { "action": "deny", "tool": "Bash", "args": { "command": "git push*" } },
+      { "action": "allow", "tool": "Read" },
+      { "action": "ask", "tool": "*" }
+    ]
+  }'
+```
+
+## Policy Sets
+
+Policy sets group related policies for easy assignment to sessions:
+
+```bash
+# Create a policy set
+codepiper policy-set create --name "Strict development"
+
+# Add policies to it
+codepiper policy-set add-policy <set-id> <policy-id-1>
+codepiper policy-set add-policy <set-id> <policy-id-2>
+```
+
+You can assign policy sets to sessions at creation time or later. A session can have one active policy set.
+
+## Evaluation Order
+
+When a permission request arrives, the policy engine:
+
+1. **Collects** all enabled policies that apply (session-specific + global)
+2. **Sorts** by priority, descending (highest priority evaluates first)
+3. **Evaluates** each rule in order within each policy
+4. **Returns** the first matching rule's action
+5. If no rule matches, falls back to the **default policy action**
+
+The default policy action is configurable via daemon settings:
+
+```bash
+# Set default to "ask" (prompt user for unmatched requests)
+codepiper policy default ask
+
+# Set default to "deny" (block unmatched requests)
+codepiper policy default deny
+```
+
+## Codex Provider Behavior
+
+Codex doesn't support native hooks, so policy enforcement works differently:
+
+- The daemon intercepts **terminal input** before forwarding it to the tmux session
+- If a matching rule exists with `ask` action, the input is **blocked**
+- If the default action is `ask` with no explicit match, input is **allowed**
+- `allow` and `deny` rules work the same as with Claude Code
+
+This means Codex sessions have less granular policy control than Claude Code sessions.
+
+## Audit Log
+
+Every policy decision is logged with:
+
+- Session ID
+- Tool name and arguments
+- Which policy and rule matched
+- The decision (allow/deny/ask)
+- The reason
+- Timestamp
+
+View the audit log:
+
+```bash
+# All recent decisions
+codepiper audit
+
+# Filter by session
+codepiper audit --session <session-id>
+
+# Limit results
+codepiper audit --limit 20
+```
+
+Or in the web dashboard under **Policies → Audit Log**.
+
+## Common Patterns
+
+### Allow everything except destructive commands
+
+```json
+[
+  { "action": "deny", "tool": "Bash", "args": { "command": "rm -rf*" } },
+  { "action": "deny", "tool": "Bash", "args": { "command": "git push --force*" } },
+  { "action": "allow", "tool": "*" }
+]
+```
+
+### Read-only mode
+
+```json
+[
+  { "action": "allow", "tool": ["Read", "Glob", "Grep", "LS"] },
+  { "action": "deny", "tool": "*", "reason": "Read-only session" }
+]
+```
+
+### Review all shell commands, allow everything else
+
+```json
+[
+  { "action": "ask", "tool": "Bash" },
+  { "action": "allow", "tool": "*" }
+]
+```
+
+## What's Next
+
+- [Security Model](/codepiper/docs/concepts/security/): Authentication and encryption
+- [Architecture Overview](/codepiper/docs/concepts/architecture/): System topology
+- [Sessions & Providers](/codepiper/docs/concepts/sessions/): Provider capabilities

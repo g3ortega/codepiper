@@ -1,0 +1,628 @@
+---
+title: REST API
+description: Complete reference for the CodePiper HTTP API. Sessions, policies, workflows, analytics, auth, and more.
+section: api
+order: 1
+---
+
+## Overview
+
+The CodePiper API is served over two transports:
+
+- **Unix socket** (`/tmp/codepiper.sock`) for CLI communication. No authentication required (the OS enforces access control via file permissions).
+- **HTTP** (default port 3000, when started with `--web`) for the web dashboard. All endpoints are prefixed with `/api` and require a valid session cookie.
+
+Request and response bodies use JSON. All endpoints return standard HTTP status codes.
+
+## Sessions
+
+### List Sessions
+
+```
+GET /sessions
+```
+
+Returns all sessions with their current status.
+
+### Create Session
+
+```
+POST /sessions
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `provider` | string | Yes | `claude-code` or `codex` |
+| `cwd` | string | Yes | Absolute path to working directory |
+| `billingMode` | string | No | `subscription` (default) or `api` |
+| `dangerousMode` | boolean | No | Bypass all policy checks |
+| `worktree` | boolean | No | Create a git worktree |
+| `createBranch` | string | No | Branch name for worktree |
+| `envSetIds` | string[] | No | Encrypted environment set IDs |
+| `workspaceId` | string | No | Workspace scope |
+| `args` | string[] | No | Pass-through arguments to provider |
+
+### Get Session
+
+```
+GET /sessions/:id
+```
+
+### Stop Session
+
+```
+POST /sessions/:id/stop
+```
+
+Graceful stop. The agent receives a stop signal.
+
+### Kill Session
+
+```
+POST /sessions/:id/kill
+```
+
+Force kill. Terminates the tmux session immediately.
+
+### Resume Session
+
+```
+POST /sessions/:id/resume
+```
+
+Resume a stopped session.
+
+### Send Text
+
+```
+POST /sessions/:id/send
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `text` | string | Yes | Text to send |
+| `newline` | boolean | No | Append newline (default: true) |
+
+### Send Keys
+
+```
+POST /sessions/:id/keys
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `keys` | string[] | Yes | Key sequences (e.g. `["ctrl+c"]`, `["enter"]`) |
+
+### Get Output
+
+```
+GET /sessions/:id/output
+```
+
+Returns the current terminal capture (tmux pane content).
+
+### Resize Terminal
+
+```
+POST /sessions/:id/resize
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `cols` | number | Yes | Column count |
+| `rows` | number | Yes | Row count |
+
+### Upload Image
+
+```
+POST /sessions/:id/upload-image
+```
+
+Upload an image file for visual context. Multipart form data.
+
+### Validate Session
+
+```
+POST /sessions/validate
+```
+
+Dry-run session creation. Returns validation errors without creating a session.
+
+### Validate Git
+
+```
+POST /sessions/validate-git
+```
+
+Validate git repository state for worktree creation.
+
+## Providers
+
+### List Providers
+
+```
+GET /providers
+```
+
+Returns provider runtime info and capability metadata for each registered provider.
+
+## Model (Claude Code only)
+
+### Get Current Model
+
+```
+GET /sessions/:id/model
+```
+
+### Switch Model
+
+```
+PUT /sessions/:id/model
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model` | string | Yes | Model alias or full ID (e.g. `sonnet`, `opus`, `claude-sonnet-4-5`) |
+
+## Policies
+
+### List Policies
+
+```
+GET /policies
+```
+
+### Create Policy
+
+```
+POST /policies
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Policy name |
+| `enabled` | boolean | No | Default: true |
+| `priority` | number | No | Higher evaluates first (default: 0) |
+| `rules` | Rule[] | Yes | Array of policy rules |
+
+### Get Policy
+
+```
+GET /policies/:id
+```
+
+### Update Policy
+
+```
+PUT /policies/:id
+```
+
+### Delete Policy
+
+```
+DELETE /policies/:id
+```
+
+## Policy Sets
+
+### CRUD
+
+```
+GET    /policy-sets
+POST   /policy-sets
+GET    /policy-sets/:id
+PUT    /policy-sets/:id
+DELETE /policy-sets/:id
+```
+
+### Manage Members
+
+```
+POST   /policy-sets/:id/policies          # Add policy to set
+DELETE /policy-sets/:id/policies/:policyId # Remove policy from set
+```
+
+### Audit Log
+
+```
+GET /policy-decisions
+```
+
+Query parameters: `sessionId`, `limit`, `offset`.
+
+## Session Policy Sets
+
+### List Assigned Sets
+
+```
+GET /sessions/:id/policy-sets
+```
+
+### Assign Policy Set
+
+```
+POST /sessions/:id/policy-sets
+```
+
+### Remove Policy Set
+
+```
+DELETE /sessions/:id/policy-sets/:setId
+```
+
+### Get Effective Policies
+
+```
+GET /sessions/:id/effective-policies
+```
+
+Returns the merged, priority-ordered list of all rules that apply to this session.
+
+## Session Policies
+
+### Get Session Policy
+
+```
+GET /sessions/:id/policy
+```
+
+### Update Session Policy
+
+```
+PUT /sessions/:id/policy
+```
+
+## Events
+
+### List Events
+
+```
+GET /sessions/:id/events
+```
+
+Query parameters: `source` (filter by event source), `limit`, `offset`.
+
+### Hook Ingestion
+
+```
+POST /hooks/claude
+```
+
+Internal endpoint used by `codepiper hook-forward` to send Claude Code hook events to the daemon.
+
+## Analytics
+
+### Overview
+
+```
+GET /analytics/overview?range=7d
+```
+
+Range values: `today`, `7d`, `30d`, `all`.
+
+Returns: session count, active sessions, total tokens, input/output/cache tokens, messages, cache hit rate, cost estimate.
+
+### Activity Timeline
+
+```
+GET /analytics/activity-timeline?range=7d
+```
+
+Daily message counts (user and assistant).
+
+### Token Usage
+
+```
+GET /analytics/token-usage?range=7d
+```
+
+Daily token breakdown (prompt, completion, cache creation, cache read).
+
+### Tokens by Model
+
+```
+GET /analytics/tokens-by-model?range=7d
+```
+
+Per-model token counts and cost estimates.
+
+### Sessions by Provider
+
+```
+GET /analytics/sessions-by-provider?range=7d
+```
+
+### Tool Usage
+
+```
+GET /analytics/tool-usage?range=7d
+```
+
+Top 15 tools by usage count.
+
+### Policy Decisions
+
+```
+GET /analytics/policy-decisions?range=7d
+```
+
+## Git (per session)
+
+### Status
+
+```
+GET /sessions/:id/git/status
+```
+
+### Branches
+
+```
+GET /sessions/:id/git/branches
+```
+
+### Log
+
+```
+GET /sessions/:id/git/log
+```
+
+### Diff
+
+```
+GET /sessions/:id/git/diff
+```
+
+### File Content
+
+```
+GET /sessions/:id/git/file?path=<relative-path>
+```
+
+### Raw File
+
+```
+GET /sessions/:id/git/file-raw?path=<relative-path>
+```
+
+### Diff Stats
+
+```
+GET /sessions/:id/git/diff-stat
+```
+
+### Stage Files
+
+```
+POST /sessions/:id/git/stage
+```
+
+### Unstage Files
+
+```
+POST /sessions/:id/git/unstage
+```
+
+## Terminal (per session)
+
+### Terminal Info
+
+```
+GET /sessions/:id/terminal/info
+```
+
+Returns pane mode, scroll position, and history size.
+
+### Enter/Exit Copy Mode
+
+```
+POST /sessions/:id/terminal/mode
+```
+
+### Scroll
+
+```
+POST /sessions/:id/terminal/scroll
+```
+
+### Search
+
+```
+POST /sessions/:id/terminal/search
+```
+
+### Transcribe Audio
+
+```
+POST /sessions/:id/terminal/transcribe
+```
+
+Speech-to-text transcription for uploaded audio files.
+
+## Workflows
+
+### CRUD
+
+```
+GET    /workflows
+POST   /workflows
+GET    /workflows/:id
+DELETE /workflows/:id
+```
+
+### Execute
+
+```
+POST /workflows/:id/execute
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `variables` | object | No | Key-value pairs for variable substitution |
+
+Returns `202 Accepted` with the execution ID.
+
+### List Executions
+
+```
+GET /workflows/:id/executions
+```
+
+Query parameters: `status`, `limit`.
+
+### Get Execution
+
+```
+GET /workflows/:id/executions/:execId
+GET /workflows/executions/:execId
+```
+
+### Cancel Execution
+
+```
+POST /workflows/:id/executions/:execId/cancel
+POST /workflows/executions/:execId/cancel
+```
+
+## Auth
+
+### Status
+
+```
+GET /auth/status
+```
+
+Returns setup state, MFA status, and authentication state. No auth required.
+
+### Setup (first-time)
+
+```
+POST /auth/setup
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `password` | string | Yes | New admin password (min 8 chars) |
+| `bootstrapPassword` | string | Yes | One-time password from daemon startup |
+
+### Login
+
+```
+POST /auth/login
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `password` | string | Yes | Admin password |
+| `totpCode` | string | No | 6-digit TOTP code (required if MFA enabled) |
+
+### Logout
+
+```
+POST /auth/logout
+```
+
+### MFA Setup
+
+```
+POST /auth/mfa/setup
+```
+
+Returns a TOTP secret and QR code URI.
+
+### MFA Verify
+
+```
+POST /auth/mfa/verify
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `code` | string | Yes | 6-digit TOTP verification code |
+
+Returns recovery codes on success.
+
+### Change Password
+
+```
+POST /auth/password
+```
+
+### List Auth Sessions
+
+```
+GET /auth/sessions
+```
+
+### Revoke All Sessions
+
+```
+POST /auth/sessions/revoke-all
+```
+
+### CLI-Only: Reset Password
+
+```
+POST /auth/cli/reset-password
+```
+
+Unix socket only. Cannot be called via HTTP.
+
+### CLI-Only: Reset MFA
+
+```
+POST /auth/cli/reset-mfa
+```
+
+Unix socket only. Revokes all active sessions.
+
+## Settings
+
+### Daemon Settings
+
+```
+GET /settings/daemon
+PUT /settings/daemon
+POST /settings/daemon/restart
+```
+
+### Workspaces
+
+```
+GET    /workspaces
+POST   /workspaces
+GET    /workspaces/:id
+PUT    /workspaces/:id
+DELETE /workspaces/:id
+```
+
+### Environment Sets
+
+```
+GET    /env-sets
+POST   /env-sets
+GET    /env-sets/:id
+PUT    /env-sets/:id
+DELETE /env-sets/:id
+```
+
+## Infrastructure
+
+### Health Check
+
+```
+GET /health
+```
+
+### Version
+
+```
+GET /version
+```
+
+### WebSocket Upgrade
+
+```
+GET /ws
+```
+
+See [WebSocket Protocol](/codepiper/docs/api/websocket/) for details.

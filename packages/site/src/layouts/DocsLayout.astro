@@ -1,0 +1,410 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import NavBar from "@/components/shared/NavBar.astro";
+import SearchModal from "@/components/docs/SearchModal.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  headings?: { depth: number; slug: string; text: string }[];
+}
+
+const { title, description, headings = [] } = Astro.props;
+const currentPath = Astro.url.pathname;
+
+// Sidebar navigation — links with `href: "#"` show as "soon" until content exists
+const sidebar = [
+  {
+    section: "Getting Started",
+    links: [
+      { href: "/codepiper/docs/getting-started/quick-start/", label: "Quick Start" },
+      { href: "/codepiper/docs/getting-started/installation/", label: "Installation" },
+      { href: "/codepiper/docs/getting-started/first-session/", label: "Your First Session" },
+      { href: "/codepiper/docs/getting-started/dashboard/", label: "Web Dashboard" },
+    ],
+  },
+  {
+    section: "Concepts",
+    links: [
+      { href: "/codepiper/docs/concepts/architecture/", label: "Architecture Overview" },
+      { href: "/codepiper/docs/concepts/sessions/", label: "Sessions & Providers" },
+      { href: "/codepiper/docs/concepts/policies/", label: "Permission Policies" },
+      { href: "/codepiper/docs/concepts/workflows/", label: "Workflows" },
+      { href: "/codepiper/docs/concepts/analytics/", label: "Analytics & Tokens" },
+      { href: "/codepiper/docs/concepts/security/", label: "Security Model" },
+    ],
+  },
+  {
+    section: "Guides",
+    links: [
+      { href: "/codepiper/docs/guides/multi-device/", label: "Multi-Device Setup" },
+      { href: "/codepiper/docs/guides/policy-config/", label: "Policy Configuration" },
+      { href: "/codepiper/docs/guides/workflow-authoring/", label: "Workflow Authoring" },
+      { href: "/codepiper/docs/guides/remote-access/", label: "Remote Access" },
+      { href: "/codepiper/docs/guides/troubleshooting/", label: "Troubleshooting" },
+    ],
+  },
+  {
+    section: "API Reference",
+    links: [
+      { href: "/codepiper/docs/api/rest/", label: "REST API" },
+      { href: "/codepiper/docs/api/websocket/", label: "WebSocket Protocol" },
+      { href: "/codepiper/docs/api/cli/", label: "CLI Commands" },
+    ],
+  },
+  {
+    section: "Contributing",
+    links: [
+      { href: "/codepiper/docs/contributing/development/", label: "Development Setup" },
+      { href: "/codepiper/docs/contributing/adding-provider/", label: "Adding a Provider" },
+      { href: "/codepiper/docs/contributing/testing/", label: "Testing Guide" },
+    ],
+  },
+];
+
+// Build flat list of active pages for prev/next navigation
+const activePages = sidebar
+  .flatMap((group) => group.links)
+  .filter((link) => link.href !== "#");
+
+const currentIndex = activePages.findIndex((link) => currentPath === link.href);
+const prevPage = currentIndex > 0 ? activePages[currentIndex - 1] : null;
+const nextPage = currentIndex >= 0 && currentIndex < activePages.length - 1 ? activePages[currentIndex + 1] : null;
+---
+
+<BaseLayout title={title} description={description}>
+  <NavBar variant="docs" />
+
+  <div class="flex min-h-screen pt-16">
+    <!-- Mobile sidebar toggle -->
+    <button
+      id="docs-sidebar-toggle"
+      class="lg:hidden fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors"
+      aria-label="Toggle docs navigation"
+    >
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+
+    <!-- Mobile sidebar overlay -->
+    <div
+      id="docs-sidebar-overlay"
+      class="lg:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm hidden"
+    >
+      <aside class="w-72 h-full bg-background border-r border-border overflow-y-auto py-6 px-4">
+        <div class="flex items-center justify-between mb-6">
+          <span class="text-sm font-medium text-foreground">Documentation</span>
+          <button
+            id="docs-sidebar-close"
+            class="p-1.5 rounded-md text-muted hover:text-foreground"
+            aria-label="Close navigation"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <!-- Mobile search button -->
+        <button
+          class="w-full flex items-center gap-2 px-3 py-2 mb-4 rounded-lg border border-border bg-card/50 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          onclick="window.__openDocsSearch?.(); document.getElementById('docs-sidebar-overlay')?.classList.add('hidden'); document.body.style.overflow = '';"
+        >
+          <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <span>Search docs</span>
+        </button>
+        <nav class="space-y-6">
+          {sidebar.map((group) => (
+            <div>
+              <h4 class="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground mb-2 px-3">
+                {group.section}
+              </h4>
+              <ul class="space-y-0.5">
+                {group.links.map((link) => {
+                  const isSoon = link.href === "#";
+                  const isActive = currentPath === link.href;
+                  return (
+                    <li>
+                      {isSoon ? (
+                        <span class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-muted-foreground/50 cursor-default">
+                          {link.label}
+                          <span class="text-[9px] uppercase tracking-wider font-medium text-muted-foreground/40 bg-card/60 px-1.5 py-0.5 rounded">soon</span>
+                        </span>
+                      ) : (
+                        <a
+                          href={link.href}
+                          class:list={[
+                            "block px-3 py-1.5 rounded-md text-sm transition-colors duration-150",
+                            isActive
+                              ? "text-primary bg-primary/8 font-medium"
+                              : "text-muted hover:text-foreground",
+                          ]}
+                        >
+                          {link.label}
+                        </a>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+      </aside>
+    </div>
+
+    <!-- Search modal -->
+    <SearchModal />
+
+    <!-- Desktop sidebar -->
+    <aside
+      id="docs-sidebar"
+      class="hidden lg:block docs-sidebar sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto py-8 pl-4 pr-6 shrink-0"
+    >
+      <!-- Search trigger -->
+      <button
+        id="docs-search-trigger"
+        class="w-full flex items-center gap-2 px-3 py-2 mb-6 rounded-lg border border-border bg-card/50 text-sm text-muted-foreground hover:text-foreground hover:border-muted-foreground/30 transition-colors cursor-pointer"
+        onclick="window.__openDocsSearch?.()"
+      >
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <span class="flex-1 text-left">Search docs</span>
+        <kbd class="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border bg-background text-[10px] font-medium text-muted-foreground">
+          <span class="text-xs">&#8984;</span>K
+        </kbd>
+      </button>
+
+      <nav class="space-y-6">
+        {sidebar.map((group) => (
+          <div>
+            <h4 class="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground mb-2 px-3">
+              {group.section}
+            </h4>
+            <ul class="space-y-0.5">
+              {group.links.map((link) => {
+                const isSoon = link.href === "#";
+                const isActive = currentPath === link.href;
+                return (
+                  <li>
+                    {isSoon ? (
+                      <span class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-muted-foreground/50 cursor-default">
+                        {link.label}
+                        <span class="text-[9px] uppercase tracking-wider font-medium text-muted-foreground/40 bg-card/60 px-1.5 py-0.5 rounded">soon</span>
+                      </span>
+                    ) : (
+                      <a
+                        href={link.href}
+                        class:list={[
+                          "block px-3 py-1.5 rounded-md text-sm transition-colors duration-150",
+                          isActive
+                            ? "text-primary bg-primary/8 font-medium"
+                            : "text-muted hover:text-foreground",
+                        ]}
+                      >
+                        {link.label}
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 min-w-0 px-4 md:px-8 py-8 lg:py-12" data-pagefind-body>
+      <div class="max-w-3xl mx-auto">
+        <div class="mb-10">
+          <h1 class="text-h1 font-bold tracking-tight text-foreground">
+            {title}
+          </h1>
+          {description && (
+            <p class="mt-3 text-base text-muted max-w-2xl leading-relaxed">
+              {description}
+            </p>
+          )}
+        </div>
+
+        <article class="docs-prose prose prose-invert prose-headings:text-foreground prose-p:text-muted prose-li:text-muted prose-strong:text-foreground prose-a:text-primary hover:prose-a:underline prose-a:no-underline max-w-none">
+          <slot />
+        </article>
+
+        <!-- Previous / Next navigation -->
+        {(prevPage || nextPage) && (
+          <nav class="mt-16 pt-8 border-t border-border flex items-center justify-between gap-4">
+            {prevPage ? (
+              <a href={prevPage.href} class="group flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors">
+                <svg class="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                {prevPage.label}
+              </a>
+            ) : <span />}
+            {nextPage ? (
+              <a href={nextPage.href} class="group flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors">
+                {nextPage.label}
+                <svg class="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </a>
+            ) : <span />}
+          </nav>
+        )}
+      </div>
+    </main>
+
+    <!-- Desktop TOC -->
+    {headings.length > 0 && (
+      <aside class="hidden xl:block w-[200px] shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto py-8 pr-4">
+        <h4 class="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground mb-3">
+          On This Page
+        </h4>
+        <ul class="space-y-1.5 border-l border-border pl-3">
+          {headings
+            .filter((h) => h.depth <= 3)
+            .map((heading) => (
+              <li>
+                <a
+                  href={`#${heading.slug}`}
+                  class:list={[
+                    "block text-xs leading-relaxed transition-colors duration-150",
+                    heading.depth === 2
+                      ? "text-muted hover:text-foreground"
+                      : "text-muted-foreground hover:text-muted pl-2",
+                  ]}
+                >
+                  {heading.text}
+                </a>
+              </li>
+            ))}
+        </ul>
+      </aside>
+    )}
+  </div>
+</BaseLayout>
+
+<script is:inline>
+  // Mobile sidebar toggle
+  const toggle = document.getElementById("docs-sidebar-toggle");
+  const overlay = document.getElementById("docs-sidebar-overlay");
+  const close = document.getElementById("docs-sidebar-close");
+
+  function openSidebar() {
+    overlay?.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  }
+  function closeSidebar() {
+    overlay?.classList.add("hidden");
+    document.body.style.overflow = "";
+  }
+
+  toggle?.addEventListener("click", openSidebar);
+  close?.addEventListener("click", closeSidebar);
+  overlay?.addEventListener("click", (e) => {
+    if (e.target === overlay) closeSidebar();
+  });
+</script>
+
+<style>
+  /* ─── Docs Prose Overrides ─── */
+
+  /* Headings */
+  .docs-prose :where(h2) {
+    font-size: var(--text-h2);
+    font-weight: 700;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+    scroll-margin-top: 5rem;
+  }
+
+  .docs-prose :where(h3) {
+    font-size: var(--text-h3);
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    scroll-margin-top: 5rem;
+    color: var(--color-foreground);
+  }
+
+  /* Inline code */
+  .docs-prose :where(code):not(:where(pre *)) {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.15em 0.4em;
+    border-radius: 0.3rem;
+    font-size: 0.85em;
+    color: var(--color-foreground);
+    font-weight: 400;
+  }
+  .docs-prose :where(code):not(:where(pre *))::before,
+  .docs-prose :where(code):not(:where(pre *))::after {
+    content: none;
+  }
+
+  /* Lists */
+  .docs-prose :where(ul) {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+  }
+  .docs-prose :where(ol) {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+  }
+  .docs-prose :where(li) {
+    margin-top: 0.35rem;
+    margin-bottom: 0.35rem;
+  }
+  .docs-prose :where(li)::marker {
+    color: var(--color-muted-foreground);
+  }
+
+  /* Paragraphs */
+  .docs-prose :where(p) {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.75;
+  }
+
+  /* Tables */
+  .docs-prose :where(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .docs-prose :where(th) {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid var(--color-border);
+    font-weight: 600;
+    color: var(--color-foreground);
+  }
+  .docs-prose :where(td) {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /* Blockquotes */
+  .docs-prose :where(blockquote) {
+    border-left: 3px solid var(--color-primary);
+    padding-left: 1rem;
+    color: var(--color-muted);
+    font-style: normal;
+  }
+
+  /* Horizontal rules */
+  .docs-prose :where(hr) {
+    border-color: var(--color-border);
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+</style>

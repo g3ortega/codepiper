@@ -1,0 +1,120 @@
+---
+title: WebSocket Protocol
+description: Real-time event streaming and terminal output via the CodePiper WebSocket server.
+section: api
+order: 2
+---
+
+## Overview
+
+The WebSocket server runs on port 9999 (separate from the HTTP API port). It provides real-time streaming for:
+
+- Session terminal output
+- Hook events (permission requests, notifications, session lifecycle)
+- Workflow execution progress
+
+## Connection
+
+```
+ws://localhost:9999/ws
+```
+
+Authentication uses the same cookie-based session as the HTTP API. The WebSocket handshake includes the session cookie automatically when connecting from the web dashboard.
+
+**Origin gating** is enforced. Connections from origins not matching the daemon's `ALLOWED_ORIGINS` setting are rejected.
+
+## Message Format
+
+All messages are JSON:
+
+```json
+{
+  "type": "subscribe",
+  "topic": "session:a1b2c3d4:output"
+}
+```
+
+## Topics
+
+### Session Output
+
+```
+session:<id>:output
+```
+
+Streams terminal output for a specific session. The daemon polls tmux output and pushes updates.
+
+### Session Events
+
+```
+session:<id>:events
+```
+
+Hook events, transcript events, and status changes for a session.
+
+### All Sessions
+
+```
+sessions
+```
+
+Session lifecycle events (created, started, stopped, crashed) across all sessions.
+
+### Workflow Execution
+
+```
+workflow:<execId>:progress
+```
+
+Step-by-step progress updates for a running workflow execution.
+
+## Subscribing
+
+Send a subscribe message:
+
+```json
+{
+  "type": "subscribe",
+  "topic": "session:a1b2c3d4:output"
+}
+```
+
+Unsubscribe:
+
+```json
+{
+  "type": "unsubscribe",
+  "topic": "session:a1b2c3d4:output"
+}
+```
+
+## PTY Input
+
+Send terminal input over the WebSocket:
+
+```json
+{
+  "type": "pty_input",
+  "sessionId": "a1b2c3d4",
+  "data": "hello world\r"
+}
+```
+
+This is equivalent to `codepiper send` but over the persistent WebSocket connection. The web dashboard uses this for interactive terminal input.
+
+## Rate Limiting
+
+- **Subscribe/unsubscribe**: Rate-limited per connection to prevent topic flooding
+- **PTY input**: Separate rate limit per session to prevent input flooding
+
+## Security
+
+- Requires authenticated session (same cookie as HTTP API)
+- Origin header validation prevents cross-origin connections
+- Rate limiting on control operations and input channels
+- Connections are dropped on authentication failure
+
+## What's next
+
+- **[REST API](/codepiper/docs/api/rest/)**: Full HTTP API reference
+- **[CLI Commands](/codepiper/docs/api/cli/)**: Command-line interface reference

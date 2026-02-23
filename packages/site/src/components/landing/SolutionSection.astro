@@ -1,0 +1,73 @@
+---
+import ArchitectureDiagram from "@/components/interactive/ArchitectureDiagram";
+
+const pillars = [
+  {
+    icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+    title: "Persist",
+    desc: "Sessions survive interruptions. Close your laptop, restart the daemon. Your sessions keep running.",
+    color: "primary",
+    borderColor: "border-primary/20",
+    bgColor: "bg-primary/5",
+    iconBg: "bg-primary/10",
+    iconText: "text-primary",
+  },
+  {
+    icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+    title: "Access",
+    desc: "CLI, web dashboard, native tmux, mobile browser. Your sessions don't care where you are.",
+    color: "emerald",
+    borderColor: "border-emerald/20",
+    bgColor: "bg-emerald/5",
+    iconBg: "bg-emerald/10",
+    iconText: "text-emerald",
+  },
+  {
+    icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+    title: "Control",
+    desc: "Permission policies with auto-handling and full audit trail. Trust boundaries for AI agents.",
+    color: "secondary",
+    borderColor: "border-secondary/20",
+    bgColor: "bg-secondary/5",
+    iconBg: "bg-secondary/10",
+    iconText: "text-secondary",
+  },
+];
+---
+
+<section class="py-24 px-4 reveal">
+  <div class="max-w-5xl mx-auto text-center">
+    <h2 class="text-h2 font-bold tracking-tight">
+      Meet <span class="text-primary">CodePiper</span>.
+    </h2>
+    <p class="mt-4 text-lg text-muted max-w-2xl mx-auto">
+      A daemon that owns your sessions. Access from anywhere.
+    </p>
+
+    <!-- Architecture diagram (React island) -->
+    <div class="mt-16 p-6 md:p-8 rounded-2xl border border-border bg-card/40 backdrop-blur-sm overflow-x-auto">
+      <ArchitectureDiagram client:visible />
+    </div>
+
+    <!-- Three pillars -->
+    <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
+      {pillars.map((p, i) => (
+        <div class:list={[
+          "group p-6 rounded-xl border transition-all duration-200",
+          "hover:-translate-y-0.5",
+          p.borderColor,
+          p.bgColor,
+          `reveal stagger-${i + 1}`,
+        ]}>
+          <div class:list={["w-12 h-12 rounded-lg flex items-center justify-center mx-auto", p.iconBg, p.iconText]}>
+            <Fragment set:html={p.icon} />
+          </div>
+          <h3 class="mt-4 font-semibold text-foreground">{p.title}</h3>
+          <p class="mt-2 text-sm text-muted leading-relaxed">
+            {p.desc}
+          </p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,158 @@
+---
+interface Props {
+  variant?: "landing" | "docs" | "blog";
+}
+
+const { variant = "landing" } = Astro.props;
+const currentPath = Astro.url.pathname;
+const isLanding = variant === "landing";
+
+const navLinks = [
+  { href: "/codepiper/docs/", label: "Docs" },
+  { href: "/codepiper/blog/", label: "Blog" },
+  { href: "https://github.com/g3ortega/codepiper", label: "GitHub", external: true },
+];
+---
+
+<nav
+  id="site-nav"
+  class="fixed top-0 left-0 right-0 z-40 flex items-center h-16 px-4 md:px-6 transition-all duration-150"
+  aria-label="Main navigation"
+>
+  <div class:list={[
+    "flex items-center w-full",
+    isLanding ? "max-w-6xl mx-auto justify-end md:justify-center" : "justify-between",
+  ]}>
+    {/* Home link — docs/blog only */}
+    {!isLanding && (
+      <a
+        href="/codepiper/"
+        class="flex items-center gap-2 text-foreground hover:text-primary transition-colors shrink-0"
+      >
+        <img
+          src="/codepiper/logo-128.png"
+          alt=""
+          width="24"
+          height="24"
+          class="rounded-sm"
+        />
+        <span class="text-sm font-semibold hidden sm:inline">CodePiper</span>
+      </a>
+    )}
+
+    {/* Desktop nav links */}
+    <div class="hidden md:flex items-center gap-1">
+      {navLinks.map((link) => (
+        <a
+          href={link.href}
+          class:list={[
+            "px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150",
+            currentPath.startsWith(link.href)
+              ? "text-primary"
+              : "text-muted hover:text-foreground",
+          ]}
+          {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        >
+          {link.label}
+          {link.external && (
+            <svg class="inline-block w-3 h-3 ml-1 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+            </svg>
+          )}
+        </a>
+      ))}
+    </div>
+
+    {/* Mobile hamburger */}
+    <button
+      id="mobile-menu-toggle"
+      class="md:hidden p-2 rounded-md text-muted hover:text-foreground"
+      aria-label="Open menu"
+      aria-expanded="false"
+    >
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<!-- Mobile menu overlay -->
+<div
+  id="mobile-menu"
+  class="fixed inset-0 z-50 bg-background/95 backdrop-blur-xl hidden flex-col items-center justify-center gap-8"
+>
+  <button
+    id="mobile-menu-close"
+    class="absolute top-4 right-4 p-2 rounded-md text-muted hover:text-foreground"
+    aria-label="Close menu"
+  >
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  </button>
+
+  {/* Home link in mobile menu — docs/blog only */}
+  {!isLanding && (
+    <a
+      href="/codepiper/"
+      class="text-2xl font-semibold text-foreground hover:text-primary transition-colors"
+    >
+      Home
+    </a>
+  )}
+
+  {navLinks.map((link) => (
+    <a
+      href={link.href}
+      class="text-2xl font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-2"
+      {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+    >
+      {link.label}
+      {link.external && (
+        <svg class="w-4 h-4 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+        </svg>
+      )}
+    </a>
+  ))}
+</div>
+
+<script is:inline>
+  // Blur nav on scroll
+  const nav = document.getElementById("site-nav");
+  if (window.scrollY > 50) nav.classList.add("nav-blur");
+  let ticking = false;
+  window.addEventListener("scroll", () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        if (window.scrollY > 50) {
+          nav.classList.add("nav-blur");
+        } else {
+          nav.classList.remove("nav-blur");
+        }
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+
+  // Mobile menu
+  const menuToggle = document.getElementById("mobile-menu-toggle");
+  const menuClose = document.getElementById("mobile-menu-close");
+  const mobileMenu = document.getElementById("mobile-menu");
+
+  menuToggle?.addEventListener("click", () => {
+    mobileMenu?.classList.remove("hidden");
+    mobileMenu?.classList.add("flex");
+    document.body.style.overflow = "hidden";
+  });
+  menuClose?.addEventListener("click", () => {
+    mobileMenu?.classList.add("hidden");
+    mobileMenu?.classList.remove("flex");
+    document.body.style.overflow = "";
+  });
+</script>

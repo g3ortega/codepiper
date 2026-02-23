@@ -1,0 +1,100 @@
+---
+import HeroTerminal from "@/components/interactive/HeroTerminal";
+---
+
+<section class="relative min-h-screen flex flex-col items-center justify-center px-4 pt-20 overflow-hidden">
+  <!-- Gradient background bleed -->
+  <div class="absolute inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute -top-[30%] -left-[15%] w-[800px] h-[600px] rounded-full bg-primary/8 blur-[120px]"></div>
+    <div class="absolute -top-[20%] -right-[10%] w-[600px] h-[500px] rounded-full bg-secondary/6 blur-[100px]"></div>
+  </div>
+
+  <div class="relative z-10 max-w-4xl mx-auto text-center">
+    <!-- Logo mark -->
+    <div class="mb-12 flex justify-center">
+      <div class="relative">
+        <div class="absolute inset-0 rounded-full bg-primary/12 blur-[40px] scale-[1.8]"></div>
+        <img
+          src="/codepiper/logo-128.png"
+          alt="CodePiper"
+          width="128"
+          height="128"
+          class="relative drop-shadow-[0_0_40px_rgba(6,182,212,0.3)]"
+        />
+      </div>
+    </div>
+
+    <h1 class="text-display font-bold tracking-tight">
+      <span class="text-foreground">CodePiper.</span>
+      <br />
+      <span class="text-foreground">One control plane for</span>
+      <br />
+      <span class="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+        every AI coding session.
+      </span>
+    </h1>
+
+    <p class="mt-6 text-lg md:text-xl text-muted max-w-2xl mx-auto leading-relaxed">
+      Launch AI sessions that outlive your terminal. Check in from
+      your phone or mobile, follow up from chat via OpenClaw,
+      jump in from any browser. Close the lid and your agents keep going.
+    </p>
+
+    <!-- CTAs -->
+    <div class="mt-10 flex items-center justify-center gap-4">
+      <a
+        href="/codepiper/docs/"
+        class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+      >
+        Get Started
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </a>
+      <a
+        href="https://github.com/g3ortega/codepiper"
+        class="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-border text-foreground font-medium hover:bg-card transition-colors"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+        </svg>
+        GitHub
+      </a>
+    </div>
+
+    <!-- Animated Terminal -->
+    <div class="mt-16">
+      <HeroTerminal client:load />
+    </div>
+
+    <!-- Install snippet -->
+    <div class="mt-8 inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-card/60 border border-border backdrop-blur-sm">
+      <code class="font-mono text-sm text-muted">npm i -g codepiper</code>
+      <button
+        class="text-muted hover:text-foreground transition-colors"
+        data-copy="npm i -g codepiper"
+        aria-label="Copy install command"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</section>
+
+<script is:inline>
+  document.querySelectorAll("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const text = btn.getAttribute("data-copy");
+      if (text) {
+        navigator.clipboard.writeText(text);
+        btn.classList.add("text-emerald");
+        setTimeout(() => btn.classList.remove("text-emerald"), 1500);
+      }
+    });
+  });
+</script>

@@ -1,0 +1,118 @@
+---
+title: Quick Start
+description: Get CodePiper running and create your first AI coding session in under 5 minutes.
+section: getting-started
+order: 1
+---
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- **[Bun](https://bun.sh)** v1.3.5 or later (the JavaScript runtime CodePiper is built on)
+- **[tmux](https://github.com/tmux/tmux)** v3.0 or later (provides the terminal sessions your agents run inside)
+- **At least one AI coding CLI**: [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or [Codex](https://github.com/openai/codex)
+
+Check everything with a single command:
+
+```bash
+codepiper doctor
+```
+
+## Install
+
+```bash
+npm i -g codepiper
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/g3ortega/codepiper.git
+cd codepiper
+bun install
+bun link
+```
+
+## Start the daemon
+
+The daemon is the long-running process that manages sessions, stores data, and serves the web dashboard.
+
+```bash
+codepiper daemon --web
+```
+
+On first run, you'll see output like this:
+
+```
+✓ Daemon started on /tmp/codepiper.sock
+✓ Web dashboard at http://127.0.0.1:3000
+✓ Bootstrap password: k8f2-mN9x-pL3q
+```
+
+Save the bootstrap password. You'll need it to log in for the first time.
+
+## Complete onboarding
+
+Open `http://localhost:3000` in your browser. You'll be prompted to:
+
+1. **Enter the bootstrap password** printed in your terminal
+2. **Set a permanent password** for future logins
+3. **Set up MFA**: scan the QR code with any authenticator app (Google Authenticator, 1Password, etc.) and enter the verification code
+
+MFA is mandatory. Every session and secret is stored locally on your machine, and MFA ensures only you can access them.
+
+## Create your first session
+
+### From the web dashboard
+
+1. Go to **Sessions** in the sidebar
+2. Click **Create Session**
+3. Choose your provider (e.g. Claude Code)
+4. Set the working directory to your project (e.g. `~/projects/my-app`)
+5. Click **Create**
+
+### From the CLI
+
+```bash
+codepiper start -p claude-code -d ~/projects/my-app
+```
+
+You'll get back a session ID:
+
+```
+✓ Session a1b2c3d4 started (claude-code)
+```
+
+## Interact with your session
+
+**Web terminal.** Click on the session in the dashboard to open a live terminal view. Type directly, paste images, and watch your agent work in real time.
+
+**CLI attach.** Jump into the session's terminal from any shell:
+
+```bash
+codepiper attach a1b2c3d4
+```
+
+**Send a prompt.** Fire off a message without attaching:
+
+```bash
+codepiper send a1b2c3d4 "What is this project and how is it structured?"
+```
+
+## Stop or resume
+
+```bash
+codepiper stop a1b2c3d4    # graceful stop
+codepiper start --resume a1b2c3d4  # pick up where you left off
+```
+
+Sessions persist across daemon restarts. Stop your laptop, reboot, restart the daemon. Your sessions are still there.
+
+## What's next
+
+- **[Installation](/codepiper/docs/getting-started/installation/)**: Platform-specific setup, system requirements, and troubleshooting
+- **[Your First Session](/codepiper/docs/getting-started/first-session/)**: Deep dive into the full session lifecycle
+- **[Web Dashboard](/codepiper/docs/getting-started/dashboard/)**: Page-by-page walkthrough, themes, mobile PWA
+- **[Architecture](/codepiper/docs/concepts/architecture/)**: How the pieces fit together under the hood
+- **[Multi-Device Setup](/codepiper/docs/guides/multi-device/)**: Access your sessions from any device, anywhere

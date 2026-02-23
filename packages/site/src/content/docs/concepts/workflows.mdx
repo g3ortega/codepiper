@@ -1,0 +1,235 @@
+---
+title: Workflows
+description: Chain multi-session tasks with CodePiper's workflow DSL. Sequential, parallel, conditional, and loop steps with variable extraction.
+section: concepts
+order: 4
+---
+
+## Overview
+
+Workflows let you orchestrate multiple AI coding sessions as a single coordinated task. Define a sequence of steps in YAML or JSON, and CodePiper handles session creation, prompt delivery, wait conditions, result extraction, and error recovery.
+
+Use workflows for:
+
+- Multi-step code generation pipelines
+- Automated testing across multiple projects
+- Parallel refactoring with branch isolation
+- Conditional logic based on intermediate results
+
+## Step Types
+
+Workflows are built from five step types.
+
+### session
+
+Spawns a new provider session, optionally sends a prompt, waits for a condition, and extracts results.
+
+```yaml
+steps:
+  - name: implement
+    type: session
+    provider: claude-code
+    cwd: ~/projects/my-app
+    prompt: "Implement the auth module with Argon2 hashing"
+    wait:
+      type: idle_prompt
+      timeout: 300000
+    extract:
+      - key: files_changed
+        type: regex
+        pattern: "Created: (.+)"
+```
+
+### if
+
+Conditional branching based on previous step results or variables.
+
+```yaml
+steps:
+  - name: check-tests
+    type: if
+    condition: "${steps.run-tests.exit_code} === 0"
+    then:
+      - name: deploy
+        type: session
+        provider: claude-code
+        prompt: "Deploy to staging"
+    else:
+      - name: fix
+        type: session
+        provider: claude-code
+        prompt: "Fix the failing tests"
+```
+
+Conditions support comparison operators: `===`, `!==`, `==`, `!=`, `>`, `<`, `>=`, `<=`.
+
+### parallel
+
+Run multiple steps concurrently.
+
+```yaml
+steps:
+  - name: multi-refactor
+    type: parallel
+    waitFor: all
+    steps:
+      - name: refactor-auth
+        type: session
+        provider: claude-code
+        cwd: ~/projects/my-app
+        prompt: "Refactor the auth module"
+      - name: refactor-api
+        type: session
+        provider: claude-code
+        cwd: ~/projects/my-app
+        prompt: "Refactor the API layer"
+```
+
+Wait modes:
+
+| Mode | Behavior |
+|------|----------|
+| `all` | Wait for every branch to complete |
+| `any` | Continue when the first branch succeeds |
+| `none` | Fire and forget (don't wait) |
+
+### foreach
+
+Loop over a list of items.
+
+```yaml
+steps:
+  - name: test-each
+    type: foreach
+    items: "${files}"
+    step:
+      name: test-file
+      type: session
+      provider: claude-code
+      prompt: "Run tests for ${item}"
+```
+
+Inside the loop body, `${item}` is the current value and `${index}` is the zero-based position.
+
+Items can be an array, a comma-separated string, or a JSON array from a previous step's extraction.
+
+### log
+
+Output a message (useful for debugging or progress tracking).
+
+```yaml
+steps:
+  - name: status
+    type: log
+    message: "Auth module created ${steps.implement.files_changed} files"
+```
+
+## Wait Conditions
+
+Session steps can wait for specific events before proceeding to the next step.
+
+| Type | Description | Provider Support |
+|------|-------------|-----------------|
+| `idle_prompt` | Agent is idle, waiting for input | Claude Code only |
+| `permission_prompt` | Permission request resolved | Claude Code only |
+| `stop` | Session has stopped | Claude Code only |
+| `event` | Specific event type received | Claude Code only |
+| `timeout` | Maximum time in milliseconds | Both |
+
+> Codex sessions don't support hook-based wait types (`idle_prompt`, `permission_prompt`, `stop`, `event`) or result extraction. These are validated at workflow creation time and rejected if the step uses the Codex provider.
+
+## Result Extraction
+
+Extract data from session output to use in later steps.
+
+```yaml
+extract:
+  - key: test_result
+    type: regex
+    pattern: "Tests: (\\d+) passed, (\\d+) failed"
+  - key: coverage
+    type: jsonpath
+    path: "$.coverage.total"
+```
+
+Extraction types:
+
+| Type | Description |
+|------|-------------|
+| `regex` | Match a regular expression against session output |
+| `jsonpath` | Extract from JSON output using JSONPath syntax |
+| `xpath` | Extract from XML output using XPath |
+
+Extracted values are stored in the execution context and accessible via `${steps.<step-name>.<key>}`.
+
+## Error Handling
+
+Each session step can define an error strategy:
+
+```yaml
+steps:
+  - name: risky-step
+    type: session
+    provider: claude-code
+    prompt: "Try something experimental"
+    onError: retry
+    retry:
+      attempts: 3
+      delay: 5000
+```
+
+| Strategy | Behavior |
+|----------|----------|
+| `fail` | Stop the entire workflow (default) |
+| `continue` | Ignore the error and proceed to the next step |
+| `retry` | Retry the step with configurable attempts and delay |
+
+## Variable Substitution
+
+Variables use `${...}` syntax and can reference:
+
+- **Input variables**: Passed at execution time via `--var KEY=VALUE`
+- **Step results**: `${steps.<step-name>.<extracted-key>}`
+- **Loop variables**: `${item}` and `${index}` inside `foreach` blocks
+
+## Execution Lifecycle
+
+Workflows and their steps go through these states:
+
+| Entity | States |
+|--------|--------|
+| Workflow execution | `pending` → `running` → `completed` / `failed` / `cancelled` |
+| Individual step | `pending` → `running` → `completed` / `failed` / `skipped` |
+
+Cancel a running workflow:
+
+```bash
+codepiper workflow cancel <execution-id>
+```
+
+This gracefully stops any running sessions and marks remaining steps as skipped.
+
+## CLI Usage
+
+```bash
+# Create a workflow from a YAML file
+codepiper workflow create workflow.yaml
+
+# List all workflows
+codepiper workflow list
+
+# Run a workflow with variables
+codepiper workflow run <workflow-id> --var branch=main --var target=staging
+
+# Check execution status
+codepiper workflow status <execution-id>
+
+# Follow execution logs
+codepiper workflow logs <execution-id> --follow
+```
+
+## What's next
+
+- **[Workflow Authoring](/codepiper/docs/guides/workflow-authoring/)**: Practical patterns and examples
+- **[Sessions & Providers](/codepiper/docs/concepts/sessions/)**: Provider capabilities that affect workflows
+- **[Analytics](/codepiper/docs/concepts/analytics/)**: Track token usage across workflow executions

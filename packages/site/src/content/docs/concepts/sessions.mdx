@@ -1,0 +1,204 @@
+---
+title: Sessions & Providers
+description: How CodePiper manages AI coding sessions through its provider abstraction and tmux runtime.
+section: concepts
+order: 2
+---
+
+## What is a Session?
+
+A session is a running instance of an AI coding agent. Each session:
+
+- Runs inside a **tmux session** named `codepiper-<uuid>`
+- Is backed by a specific **provider** (Claude Code or Codex CLI)
+- Has its own working directory, environment, and policy configuration
+- Persists independently of any client connection
+
+Sessions are the primary unit of work in CodePiper. You create them, interact with them, and manage their lifecycle, all through the daemon.
+
+## Providers
+
+A provider is an adapter that knows how to launch and manage a specific AI coding tool. CodePiper ships with two providers:
+
+### Claude Code
+
+The primary provider with full integration:
+
+| Feature | Support |
+|---------|---------|
+| Native hooks | Yes (SessionStart, Notification, PermissionRequest, Stop) |
+| Transcript tailing | Yes (JSONL with byte-offset crash-safe resumption) |
+| Model switching | Yes (sonnet, opus, haiku, and more) |
+| Dangerous mode | Yes (`--dangerously-skip-permissions`) |
+| Policy handling | Native hooks (automatic tmux keystrokes) |
+| Analytics fidelity | High (token counts, tool usage, model distribution) |
+
+Claude Code sessions use a **settings overlay** pattern: the daemon generates a per-session JSON file that configures hooks to forward events back via `codepiper hook-forward`.
+
+### Codex CLI
+
+A simpler integration for OpenAI's Codex CLI:
+
+| Feature | Support |
+|---------|---------|
+| Native hooks | No |
+| Transcript tailing | No |
+| Model switching | No |
+| Dangerous mode | Yes (`--dangerously-bypass-approvals-and-sandbox`) |
+| Policy handling | Input preflight (terminal input blocking) |
+| Analytics fidelity | Low (PTY output only) |
+
+Without native hooks, Codex sessions rely on **input preflight** for policy enforcement: the daemon intercepts terminal input and checks it against policies before forwarding to tmux. This means some workflow features (hook-dependent `wait` types, transcript `extract`) are not available.
+
+## Creating Sessions
+
+### Via CLI
+
+```bash
+# Basic session
+codepiper start -p claude-code -d ~/projects/my-app
+
+# With billing mode and env set
+codepiper start -p claude-code -d ~/projects/my-app \
+  --billing api \
+  --env-set my-api-keys
+
+# With worktree isolation
+codepiper start -p claude-code -d ~/projects/my-app \
+  --worktree --create-branch feature/refactor
+
+# With custom args passed to the provider
+codepiper start -p claude-code -d ~/projects/my-app \
+  -- --model opus
+```
+
+### Via Web Dashboard
+
+Navigate to **Sessions → Create Session** and fill in:
+
+- **Provider**: Claude Code or Codex
+- **Working directory**: absolute path on the daemon's machine
+- **Billing mode**: Subscription (default) or API
+- **Workspace**: optional workspace scope
+- **Environment sets**: optional encrypted env vars
+- **Worktree**: toggle for git worktree isolation
+
+{/* TODO: Add screenshot of session creation dialog */}
+
+## Session Options
+
+| Option | CLI Flag | Description |
+|--------|----------|-------------|
+| Provider | `--provider, -p` | Required. `claude-code` or `codex` |
+| Directory | `--dir, -d` | Working directory (default: cwd) |
+| Billing | `--billing` | `subscription` (default) or `api` |
+| Dangerous | `--dangerous` | Bypass all CodePiper policy checks |
+| Worktree | `--worktree` | Create isolated git worktree |
+| Branch | `--create-branch` | New branch name for worktree |
+| Env set | `--env-set` | Encrypted environment set ID (repeatable) |
+| Workspace | `--workspace` | Workspace ID for scoping |
+| Validate | `--validate` | Dry-run without creating |
+| Args | `-- [args]` | Pass-through arguments to provider |
+
+## Billing Modes
+
+CodePiper enforces two billing modes for compliance:
+
+### Subscription (default)
+
+- Scrubs `ANTHROPIC_API_KEY` from the session environment
+- The provider uses its built-in Max plan billing
+- Suitable for **interactive use**
+
+### API
+
+- Preserves `ANTHROPIC_API_KEY` in the session environment
+- The provider bills directly to your API account (pay-per-token)
+- **Required for automated workflows** per Anthropic's Terms of Service
+
+> The `CLAUDECODE` environment variable (which controls session nesting) is always scrubbed regardless of billing mode.
+
+## Interacting with Sessions
+
+### Terminal Input
+
+```bash
+# Send text (with newline by default)
+codepiper send <session-id> "refactor the auth module"
+
+# Send without trailing newline
+codepiper send <session-id> --no-newline "partial text"
+
+# Send key sequences
+codepiper keys <session-id> ctrl+c
+codepiper keys <session-id> enter
+codepiper keys <session-id> "escape" "up" "up" "enter"
+
+# Send an image for context
+codepiper send <session-id> --image screenshot.png "what's wrong with this layout?"
+```
+
+### Observing Sessions
+
+```bash
+# Attach to session (interactive, keyboard passthrough)
+codepiper attach <session-id>
+
+# Follow output (read-only)
+codepiper attach <session-id> --follow
+
+# Tail raw output
+codepiper tail <session-id> --follow
+
+# View event stream
+codepiper logs <session-id> --follow --source hook
+```
+
+### Managing Sessions
+
+```bash
+# List all sessions
+codepiper sessions
+
+# Stop gracefully
+codepiper stop <session-id>
+
+# Force kill
+codepiper kill <session-id>
+
+# Resume a stopped session
+# (handled via web dashboard or API)
+```
+
+## Session Persistence
+
+Sessions survive everything:
+
+- **Daemon restart.** The daemon re-adopts orphaned tmux sessions on startup
+- **SSH disconnect.** tmux sessions are detached, not killed
+- **Laptop lid close.** If the daemon is on a server, sessions keep running
+- **Client disconnect.** Sessions are daemon-owned, not client-owned
+
+The `sessionPreservation` daemon setting controls whether stopped sessions are automatically resumed when the daemon restarts.
+
+## Model Switching (Claude Code)
+
+Claude Code sessions support switching models mid-session:
+
+```bash
+# Check current model
+codepiper model <session-id>
+
+# Switch to a different model
+codepiper model <session-id> opus
+codepiper model <session-id> sonnet
+codepiper model <session-id> haiku
+```
+
+Available model aliases: `sonnet`, `opus`, `haiku`, `opusplan`, plus full model IDs like `claude-sonnet-4-5`, `claude-opus-4-6`, `claude-haiku-4-5`.
+
+## What's Next
+
+- [Architecture Overview](/codepiper/docs/concepts/architecture/): How all the pieces fit together
+- [Permission Policies](/codepiper/docs/concepts/policies/): Control what your agents can do
+- [Security Model](/codepiper/docs/concepts/security/): Authentication and access control

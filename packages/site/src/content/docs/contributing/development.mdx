@@ -1,0 +1,119 @@
+---
+title: Development Setup
+description: Set up a local development environment for contributing to CodePiper.
+section: contributing
+order: 1
+---
+
+## Prerequisites
+
+- **Bun** 1.3.5+ (`curl -fsSL https://bun.sh/install | bash`)
+- **tmux** 3.0+
+- **Node.js** 18+ (for some tooling)
+- **Git**
+
+## Clone and Install
+
+```bash
+git clone https://github.com/g3ortega/codepiper.git
+cd codepiper
+bun install
+```
+
+The `bun install` step resolves all workspace dependencies. A `postinstall` script links workspaces via `scripts/postinstall-link-workspaces.mjs`.
+
+## Project Structure
+
+```
+packages/
+├── core/              # Shared types, event bus, config, errors
+├── daemon/            # API server, DB, sessions, workflows, auth
+├── cli/               # CLI client (user-facing + hook-forward)
+├── providers/
+│   └── claude-code/   # Claude Code settings overlay provider
+├── web/               # React dashboard (Vite + Tailwind + shadcn/ui)
+└── site/              # Marketing site and docs (Astro)
+```
+
+## Running Locally
+
+### Daemon only (CLI mode)
+
+```bash
+bun run daemon
+```
+
+Listens on Unix socket at `/tmp/codepiper.sock`.
+
+### Daemon with web dashboard
+
+```bash
+bun run daemon:web
+```
+
+Serves the dashboard at `http://localhost:3000` with WebSocket on port 9999.
+
+### Custom port
+
+```bash
+bun run daemon -- --web --port 3456
+```
+
+### Web dashboard development
+
+The web dashboard uses Vite for hot module replacement:
+
+```bash
+cd packages/web
+bun run dev
+```
+
+This starts a Vite dev server with HMR. The dashboard proxies API requests to the daemon.
+
+### Site development
+
+```bash
+bun run dev:site
+```
+
+Starts the Astro dev server for the marketing site and docs.
+
+## Code Quality
+
+CodePiper uses [Biome](https://biomejs.dev/) for linting and formatting.
+
+```bash
+bun run lint          # Check for issues
+bun run lint:fix      # Auto-fix issues
+bun run format        # Format all files
+```
+
+**Biome config**: double quotes, semicolons, 2-space indent, 100 character line width, ES5 trailing commas.
+
+### Pre-commit Check
+
+Run the full quality check before committing:
+
+```bash
+bun run pre-commit
+```
+
+This runs: `lint:fix` + `typecheck` + strict typecheck + tests.
+
+## Database
+
+SQLite via `bun:sqlite`. The database is created automatically on first daemon start at `~/.codepiper/codepiper.db`.
+
+Schema is defined in `packages/daemon/src/db/schema.sql` (22 tables). The database is re-created from schema on first run.
+
+## Key Architecture Decisions
+
+- **Persist first, process later.** All state is written to SQLite before processing. This ensures data survives daemon restarts.
+- **tmux as PTY runtime.** `tmux send-keys` provides real keyboard input fidelity. See [Architecture](/codepiper/docs/concepts/architecture/) for the full rationale.
+- **Provider registry.** Providers are registered at startup. The daemon doesn't know about provider internals; it calls the provider interface.
+- **Settings overlay.** Claude Code sessions get a per-session JSON settings file that configures hooks to forward events back to the daemon.
+
+## What's next
+
+- **[Adding a Provider](/codepiper/docs/contributing/adding-provider/)**: Extend CodePiper with new AI coding tools
+- **[Testing Guide](/codepiper/docs/contributing/testing/)**: Running and writing tests

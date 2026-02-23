@@ -1,0 +1,206 @@
+---
+title: Troubleshooting
+description: Common issues, error messages, and how to fix them.
+section: guides
+order: 5
+---
+
+## Diagnostics First
+
+Before troubleshooting manually, run:
+
+```bash
+codepiper doctor
+```
+
+This checks your platform, Bun version, tmux version, provider binaries, API key status, and daemon connectivity. Most issues show up here.
+
+## Installation Issues
+
+### "bun: command not found"
+
+Bun isn't installed or not in your PATH.
+
+```bash
+# Install Bun
+curl -fsSL https://bun.sh/install | bash
+
+# Reload your shell
+source ~/.bashrc   # or ~/.zshrc
+```
+
+### "tmux: command not found"
+
+```bash
+# macOS
+brew install tmux
+
+# Ubuntu/Debian
+sudo apt install tmux
+
+# Fedora
+sudo dnf install tmux
+```
+
+### "codepiper: command not found"
+
+If installed via npm:
+
+```bash
+npm i -g codepiper
+```
+
+If installed from source, make sure you ran `bun link` in the repository root.
+
+## Daemon Issues
+
+### "Error: Socket already in use"
+
+Another daemon instance is already running, or a stale socket file exists.
+
+```bash
+# Check if a daemon is running
+codepiper daemon status
+
+# If nothing is running, remove the stale socket
+rm /tmp/codepiper.sock
+
+# Start fresh
+codepiper daemon --web
+```
+
+### "Web UI shows a blank page"
+
+The web dashboard assets may not be built. Rebuild them:
+
+```bash
+bun run build:web
+```
+
+Then restart the daemon. If using a source install, make sure `packages/web/dist/` exists and contains the built files.
+
+### Daemon won't start
+
+Check for port conflicts:
+
+```bash
+# Check if port 3000 is in use
+lsof -i :3000
+
+# Check if port 9999 is in use
+lsof -i :9999
+```
+
+Use a custom port if needed:
+
+```bash
+codepiper daemon --web --port 8080
+```
+
+## Session Issues
+
+### Session stuck in "Starting"
+
+The provider binary might not be found or tmux failed to create the session.
+
+```bash
+# Verify provider is installed
+which claude    # or: which codex
+
+# Check tmux sessions directly
+tmux list-sessions
+
+# Force kill the stuck session
+codepiper kill <session-id>
+```
+
+### Session crashed immediately
+
+Check the session events for error details:
+
+```bash
+codepiper logs <session-id> --source hook
+```
+
+Common causes:
+
+- **Missing API key**: API billing mode requires `ANTHROPIC_API_KEY` in the environment or an env set
+- **Invalid working directory**: The path must exist on the daemon's machine
+- **Provider error**: The Claude Code or Codex CLI itself failed (check the terminal output)
+
+### Can't attach to session
+
+```bash
+# Check session status
+codepiper sessions
+
+# If the session exists but attach fails, try via tmux directly
+tmux attach -t codepiper-<session-id>
+```
+
+### Terminal output looks garbled
+
+This usually happens with tmux version mismatches. Verify your version:
+
+```bash
+tmux -V
+```
+
+CodePiper recommends tmux 3.0+. If you're on an older version, upgrade.
+
+## Authentication Issues
+
+### "MFA locked out"
+
+If you've lost access to your authenticator app, use a recovery code to log in. If you don't have recovery codes:
+
+```bash
+# Reset MFA from the CLI (requires Unix socket access)
+codepiper auth reset-mfa
+```
+
+This clears the TOTP secret and revokes all active sessions. You'll need to set up MFA again on next login.
+
+### "Forgot password"
+
+```bash
+# Reset password interactively
+codepiper auth reset-password
+
+# Or generate a new random password
+codepiper auth reset-password --generate
+```
+
+Password and MFA resets can only be done from the CLI (Unix socket access), not from the web dashboard. This is a security measure.
+
+### "Too many login attempts"
+
+The daemon rate-limits login attempts per IP. Wait a few minutes and try again, or restart the daemon to clear the rate limiter.
+
+## Network Issues
+
+### WebSocket connection fails
+
+The WebSocket server runs on a separate port (default 9999). Make sure:
+
+- Port 9999 is not blocked by a firewall
+- If using SSH tunnel, both ports are forwarded: `-L 3000:localhost:3000 -L 9999:localhost:9999`
+- If using a reverse proxy, the `/ws` location is configured with `Upgrade` and `Connection` headers
+
+### Dashboard loads but terminal is blank
+
+This means the HTTP connection works but WebSocket doesn't. Check the browser console for WebSocket errors and verify port 9999 is accessible.
+
+## Getting Help
+
+If you're stuck:
+
+1. Run `codepiper doctor` and note any failures
+2. Check `codepiper logs <session-id>` for error details
+3. Open an issue at [github.com/g3ortega/codepiper/issues](https://github.com/g3ortega/codepiper/issues) with the diagnostic output
+
+## What's next
+
+- **[Installation](/codepiper/docs/getting-started/installation/)**: System requirements and setup
+- **[Security Model](/codepiper/docs/concepts/security/)**: Authentication and access details
+- **[Remote Access](/codepiper/docs/guides/remote-access/)**: SSH tunnel and reverse proxy config

@@ -1,0 +1,99 @@
+---
+const steps = [
+  { name: "implement", status: "Done", color: "#10b981", progress: 100 },
+  { name: "review", status: "Done", color: "#10b981", progress: 100 },
+  { name: "test", status: "Running", color: "#06b6d4", progress: 65 },
+];
+
+const stepTypes = ["session", "parallel", "if / else", "foreach", "log", "wait"];
+---
+
+<section class="py-24 px-4 reveal">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-16">
+      <h2 class="text-h2 font-bold tracking-tight text-foreground">
+        Chain sessions into <span class="text-primary">workflows</span>.
+      </h2>
+      <p class="mt-4 text-lg text-muted max-w-2xl mx-auto">
+        Define multi-step automations in YAML. Sequential, parallel, conditional, and loop steps.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- YAML example -->
+      <div class="rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-border flex items-center gap-2">
+          <span class="text-xs text-muted-foreground font-mono">workflow.yaml</span>
+        </div>
+        <pre class="p-4 text-[13px] leading-relaxed font-mono overflow-x-auto">
+<code><span class="text-muted-foreground">name:</span> <span class="text-emerald">implement-review-test</span>
+<span class="text-muted-foreground">steps:</span>
+  - <span class="text-muted-foreground">name:</span> <span class="text-foreground">implement</span>
+    <span class="text-muted-foreground">type:</span> <span class="text-primary">session</span>
+    <span class="text-muted-foreground">provider:</span> <span class="text-foreground">claude-code</span>
+    <span class="text-muted-foreground">prompt:</span> <span class="text-amber">"Add auth module with MFA"</span>
+    <span class="text-muted-foreground">wait:</span> <span class="text-secondary">[idle]</span>
+
+  - <span class="text-muted-foreground">name:</span> <span class="text-foreground">review</span>
+    <span class="text-muted-foreground">type:</span> <span class="text-primary">session</span>
+    <span class="text-muted-foreground">prompt:</span> <span class="text-amber">"Review the auth changes"</span>
+    <span class="text-muted-foreground">wait:</span> <span class="text-secondary">[stop]</span>
+
+  - <span class="text-muted-foreground">name:</span> <span class="text-foreground">test</span>
+    <span class="text-muted-foreground">type:</span> <span class="text-primary">session</span>
+    <span class="text-muted-foreground">prompt:</span> <span class="text-amber">"Run the test suite"</span>
+    <span class="text-muted-foreground">wait:</span> <span class="text-secondary">[stop]</span></code></pre>
+      </div>
+
+      <!-- Execution visualization -->
+      <div class="rounded-xl border border-border bg-card/60 backdrop-blur-sm p-6">
+        <div class="text-xs text-muted-foreground font-mono mb-6 uppercase tracking-wide">Execution</div>
+
+        <div class="space-y-6">
+          {steps.map((step, i) => (
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    style={`background: ${step.color}20; color: ${step.color};`}
+                  >
+                    {step.progress === 100 ? "\u2713" : i + 1}
+                  </div>
+                  <span class="text-sm font-medium text-foreground font-mono">{step.name}</span>
+                </div>
+                <span class="text-xs font-mono" style={`color: ${step.color};`}>{step.status}</span>
+              </div>
+              <div class="h-1.5 rounded-full bg-card overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  style={`width: ${step.progress}%; background: ${step.color};`}
+                ></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-border grid grid-cols-2 gap-4 text-center">
+          <div>
+            <div class="text-xs text-muted-foreground">Elapsed</div>
+            <div class="text-lg font-semibold text-foreground font-mono">12m 34s</div>
+          </div>
+          <div>
+            <div class="text-xs text-muted-foreground">Tokens</div>
+            <div class="text-lg font-semibold text-primary font-mono">847K</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step type badges -->
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-2">
+      {stepTypes.map((type) => (
+        <span class="px-2.5 py-1 rounded-md text-xs font-mono text-muted bg-card border border-border">
+          {type}
+        </span>
+      ))}
+    </div>
+  </div>
+</section>
