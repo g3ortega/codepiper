@@ -1,3 +1,8 @@
 ---
-return Astro.redirect("/codepiper/docs/getting-started/quick-start/");
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const target = `${base}/docs/getting-started/quick-start/`;
 ---
+
+<meta http-equiv="refresh" content={`0;url=${target}`} />
+<link rel="canonical" href={target} />
+<script define:vars={{ target }}>window.location.replace(target);</script>
