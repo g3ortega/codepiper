@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import OpenClawChatFrame from "./OpenClawChatFrame";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import ConstellationView from "./ConstellationView";
+import OpenClawChatFrame from "./OpenClawChatFrame";
 
 type DeviceId = "laptop" | "phone" | "tablet" | "chat" | "terminal" | "constellation";
 
