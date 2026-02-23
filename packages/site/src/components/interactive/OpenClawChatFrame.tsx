@@ -174,8 +174,7 @@ export default function OpenClawChatFrame({ active = true }: { active?: boolean 
               <div
                 style={{
                   padding: "6px 10px",
-                  borderRadius:
-                    msg.from === "user" ? "10px 10px 3px 10px" : "10px 10px 10px 3px",
+                  borderRadius: msg.from === "user" ? "10px 10px 3px 10px" : "10px 10px 10px 3px",
                   background: msg.from === "user" ? "rgba(6, 182, 212, 0.85)" : "#1f2c34",
                   color: msg.from === "user" ? "white" : "#e9edef",
                   fontSize: 11,

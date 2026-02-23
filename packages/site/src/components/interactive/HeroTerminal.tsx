@@ -98,8 +98,7 @@ export default function HeroTerminal() {
         background: "rgba(22, 27, 34, 0.8)",
         backdropFilter: "blur(20px)",
         border: "1px solid rgba(6, 182, 212, 0.15)",
-        boxShadow:
-          "0 0 40px -10px rgba(6, 182, 212, 0.1), 0 25px 50px -12px rgba(0, 0, 0, 0.4)",
+        boxShadow: "0 0 40px -10px rgba(6, 182, 212, 0.1), 0 25px 50px -12px rgba(0, 0, 0, 0.4)",
       }}
     >
       {/* Title bar */}

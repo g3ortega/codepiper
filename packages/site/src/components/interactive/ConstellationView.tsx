@@ -218,12 +218,7 @@ export default function ConstellationView({ active, progress }: ConstellationPro
               opacity="0"
             >
               <animate attributeName="r" values="44;60" dur="2s" repeatCount="indefinite" />
-              <animate
-                attributeName="opacity"
-                values="0.4;0"
-                dur="2s"
-                repeatCount="indefinite"
-              />
+              <animate attributeName="opacity" values="0.4;0" dur="2s" repeatCount="indefinite" />
             </circle>
           )}
         </g>

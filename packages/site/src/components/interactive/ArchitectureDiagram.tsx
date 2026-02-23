@@ -11,14 +11,56 @@ interface NodeDef {
 }
 
 const NODES: Record<string, NodeDef> = {
-  you: { x: 60, y: 220, label: "You", icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", group: "user" },
+  you: {
+    x: 60,
+    y: 220,
+    label: "You",
+    icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z",
+    group: "user",
+  },
   cli: { x: 250, y: 80, label: "CLI", icon: "M4 17l6-6-6-6M12 19h8", group: "interface" },
-  web: { x: 250, y: 360, label: "Web UI", icon: "M3 3h18v14H3zM3 17h18M8 21h8", group: "interface" },
-  daemon: { x: 478, y: 220, label: "Daemon", icon: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5", group: "core" },
-  tmux: { x: 670, y: 220, label: "tmux", icon: "M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3", group: "runtime" },
-  claude: { x: 860, y: 100, label: "Claude Code", icon: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6v6l4 2", group: "provider" },
-  codex: { x: 860, y: 340, label: "Codex CLI", icon: "M16 18l2-2-2-2M8 18l-2-2 2-2M13.5 6l-3 12", group: "provider" },
-  sqlite: { x: 478, y: 408, label: "SQLite", icon: "M12 2a8 4 0 1 0 0 8 8 4 0 0 0 0-8zM4 6v6a8 4 0 0 0 16 0V6M4 12v6a8 4 0 0 0 16 0v-6", group: "storage" },
+  web: {
+    x: 250,
+    y: 360,
+    label: "Web UI",
+    icon: "M3 3h18v14H3zM3 17h18M8 21h8",
+    group: "interface",
+  },
+  daemon: {
+    x: 478,
+    y: 220,
+    label: "Daemon",
+    icon: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+    group: "core",
+  },
+  tmux: {
+    x: 670,
+    y: 220,
+    label: "tmux",
+    icon: "M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3",
+    group: "runtime",
+  },
+  claude: {
+    x: 860,
+    y: 100,
+    label: "Claude Code",
+    icon: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6v6l4 2",
+    group: "provider",
+  },
+  codex: {
+    x: 860,
+    y: 340,
+    label: "Codex CLI",
+    icon: "M16 18l2-2-2-2M8 18l-2-2 2-2M13.5 6l-3 12",
+    group: "provider",
+  },
+  sqlite: {
+    x: 478,
+    y: 408,
+    label: "SQLite",
+    icon: "M12 2a8 4 0 1 0 0 8 8 4 0 0 0 0-8zM4 6v6a8 4 0 0 0 16 0V6M4 12v6a8 4 0 0 0 16 0v-6",
+    group: "storage",
+  },
 };
 
 /* ─── Edge definitions ─── */
@@ -45,12 +87,42 @@ const EDGES: EdgeDef[] = [
 /* ─── Group colors ─── */
 
 const GROUP_COLORS: Record<string, { bg: string; border: string; text: string; glow: string }> = {
-  user: { bg: "rgba(243,244,246,0.06)", border: "rgba(243,244,246,0.18)", text: "#e5e7eb", glow: "rgba(243,244,246,0.06)" },
-  interface: { bg: "rgba(6,182,212,0.06)", border: "rgba(6,182,212,0.25)", text: "#22d3ee", glow: "rgba(6,182,212,0.08)" },
-  core: { bg: "rgba(6,182,212,0.10)", border: "rgba(6,182,212,0.4)", text: "#67e8f9", glow: "rgba(6,182,212,0.15)" },
-  runtime: { bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.25)", text: "#34d399", glow: "rgba(16,185,129,0.08)" },
-  provider: { bg: "rgba(139,92,246,0.06)", border: "rgba(139,92,246,0.25)", text: "#a78bfa", glow: "rgba(139,92,246,0.08)" },
-  storage: { bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.25)", text: "#fbbf24", glow: "rgba(245,158,11,0.08)" },
+  user: {
+    bg: "rgba(243,244,246,0.06)",
+    border: "rgba(243,244,246,0.18)",
+    text: "#e5e7eb",
+    glow: "rgba(243,244,246,0.06)",
+  },
+  interface: {
+    bg: "rgba(6,182,212,0.06)",
+    border: "rgba(6,182,212,0.25)",
+    text: "#22d3ee",
+    glow: "rgba(6,182,212,0.08)",
+  },
+  core: {
+    bg: "rgba(6,182,212,0.10)",
+    border: "rgba(6,182,212,0.4)",
+    text: "#67e8f9",
+    glow: "rgba(6,182,212,0.15)",
+  },
+  runtime: {
+    bg: "rgba(16,185,129,0.06)",
+    border: "rgba(16,185,129,0.25)",
+    text: "#34d399",
+    glow: "rgba(16,185,129,0.08)",
+  },
+  provider: {
+    bg: "rgba(139,92,246,0.06)",
+    border: "rgba(139,92,246,0.25)",
+    text: "#a78bfa",
+    glow: "rgba(139,92,246,0.08)",
+  },
+  storage: {
+    bg: "rgba(245,158,11,0.06)",
+    border: "rgba(245,158,11,0.25)",
+    text: "#fbbf24",
+    glow: "rgba(245,158,11,0.08)",
+  },
 };
 
 /* ─── Node sizes ─── */
@@ -70,8 +142,12 @@ function getNodeHalfSize(id: string): { hw: number; hh: number } {
 /* ─── Rectangle edge intersection ─── */
 
 function rectEdgePoint(
-  cx: number, cy: number, hw: number, hh: number,
-  tx: number, ty: number,
+  cx: number,
+  cy: number,
+  hw: number,
+  hh: number,
+  tx: number,
+  ty: number
 ): { x: number; y: number } {
   const dx = tx - cx;
   const dy = ty - cy;
@@ -86,10 +162,7 @@ function rectEdgePoint(
 
 /* ─── Bezier path (edge-to-edge) ─── */
 
-function computeEdgePath(
-  fromId: string, toId: string,
-  from: NodeDef, to: NodeDef,
-): string {
+function computeEdgePath(fromId: string, toId: string, from: NodeDef, to: NodeDef): string {
   const fromSize = getNodeHalfSize(fromId);
   const toSize = getNodeHalfSize(toId);
 
@@ -180,19 +253,47 @@ export default function ArchitectureDiagram() {
           </filter>
 
           {/* Arrow markers per group */}
-          <marker id="arrow-interface" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <marker
+            id="arrow-interface"
+            markerWidth="8"
+            markerHeight="6"
+            refX="8"
+            refY="3"
+            orient="auto"
+          >
             <polygon points="0 0, 8 3, 0 6" fill="rgba(6,182,212,0.5)" />
           </marker>
           <marker id="arrow-core" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <polygon points="0 0, 8 3, 0 6" fill="rgba(6,182,212,0.6)" />
           </marker>
-          <marker id="arrow-runtime" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <marker
+            id="arrow-runtime"
+            markerWidth="8"
+            markerHeight="6"
+            refX="8"
+            refY="3"
+            orient="auto"
+          >
             <polygon points="0 0, 8 3, 0 6" fill="rgba(16,185,129,0.5)" />
           </marker>
-          <marker id="arrow-provider" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <marker
+            id="arrow-provider"
+            markerWidth="8"
+            markerHeight="6"
+            refX="8"
+            refY="3"
+            orient="auto"
+          >
             <polygon points="0 0, 8 3, 0 6" fill="rgba(139,92,246,0.5)" />
           </marker>
-          <marker id="arrow-storage" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <marker
+            id="arrow-storage"
+            markerWidth="8"
+            markerHeight="6"
+            refX="8"
+            refY="3"
+            orient="auto"
+          >
             <polygon points="0 0, 8 3, 0 6" fill="rgba(245,158,11,0.5)" />
           </marker>
         </defs>
@@ -223,23 +324,33 @@ export default function ArchitectureDiagram() {
           const labelY = mid.y + (edge.labelDy || 0);
 
           const arrowId =
-            toGroup === "storage" ? "arrow-storage" :
-            toGroup === "provider" ? "arrow-provider" :
-            toGroup === "runtime" ? "arrow-runtime" :
-            toGroup === "core" ? "arrow-core" :
-            "arrow-interface";
+            toGroup === "storage"
+              ? "arrow-storage"
+              : toGroup === "provider"
+                ? "arrow-provider"
+                : toGroup === "runtime"
+                  ? "arrow-runtime"
+                  : toGroup === "core"
+                    ? "arrow-core"
+                    : "arrow-interface";
 
           const edgeColor =
-            toGroup === "storage" ? "rgba(245,158,11,0.2)" :
-            toGroup === "provider" ? "rgba(139,92,246,0.2)" :
-            toGroup === "runtime" ? "rgba(16,185,129,0.2)" :
-            "rgba(6,182,212,0.2)";
+            toGroup === "storage"
+              ? "rgba(245,158,11,0.2)"
+              : toGroup === "provider"
+                ? "rgba(139,92,246,0.2)"
+                : toGroup === "runtime"
+                  ? "rgba(16,185,129,0.2)"
+                  : "rgba(6,182,212,0.2)";
 
           const particleColor =
-            toGroup === "storage" ? "#fbbf24" :
-            toGroup === "provider" ? "#a78bfa" :
-            toGroup === "runtime" ? "#34d399" :
-            "#22d3ee";
+            toGroup === "storage"
+              ? "#fbbf24"
+              : toGroup === "provider"
+                ? "#a78bfa"
+                : toGroup === "runtime"
+                  ? "#34d399"
+                  : "#22d3ee";
 
           return (
             <g key={`edge-${i}`}>
@@ -297,7 +408,12 @@ export default function ArchitectureDiagram() {
                   {/* Glow behind particle */}
                   <circle r="8" fill={particleColor} opacity="0.15" filter="url(#particle-glow)">
                     <animateMotion dur="1s" fill="freeze" path={path} />
-                    <animate attributeName="opacity" values="0;0.15;0.15;0" dur="1s" fill="freeze" />
+                    <animate
+                      attributeName="opacity"
+                      values="0;0.15;0.15;0"
+                      dur="1s"
+                      fill="freeze"
+                    />
                   </circle>
                   {/* Bright particle */}
                   <circle r="3.5" fill={particleColor} opacity="0.9">
@@ -383,7 +499,11 @@ export default function ArchitectureDiagram() {
                 fill={colors.text}
                 fontSize={isDaemon ? 14 : 12.5}
                 fontWeight={isDaemon ? 600 : 500}
-                fontFamily={id === "sqlite" || id === "tmux" ? '"DM Mono", monospace' : '"DM Sans", system-ui, sans-serif'}
+                fontFamily={
+                  id === "sqlite" || id === "tmux"
+                    ? '"DM Mono", monospace'
+                    : '"DM Sans", system-ui, sans-serif'
+                }
               >
                 {node.label}
               </text>

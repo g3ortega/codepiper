@@ -65,13 +65,12 @@ const sidebar = [
 ];
 
 // Build flat list of active pages for prev/next navigation
-const activePages = sidebar
-  .flatMap((group) => group.links)
-  .filter((link) => link.href !== "#");
+const activePages = sidebar.flatMap((group) => group.links).filter((link) => link.href !== "#");
 
 const currentIndex = activePages.findIndex((link) => currentPath === link.href);
 const prevPage = currentIndex > 0 ? activePages[currentIndex - 1] : null;
-const nextPage = currentIndex >= 0 && currentIndex < activePages.length - 1 ? activePages[currentIndex + 1] : null;
+const nextPage =
+  currentIndex >= 0 && currentIndex < activePages.length - 1 ? activePages[currentIndex + 1] : null;
 ---
 
 <BaseLayout title={title} description={description}>

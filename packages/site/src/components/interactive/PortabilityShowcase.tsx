@@ -77,7 +77,7 @@ function getActiveFrame(progress: number): { frame: FrameConfig; localProgress: 
 function frameTransitionStyle(
   frameId: DeviceId,
   activeId: DeviceId,
-  localProgress: number,
+  localProgress: number
 ): CSSProperties {
   const isActive = frameId === activeId;
   const isConstellation = frameId === "constellation";
@@ -325,15 +325,9 @@ function LaptopFrame() {
         }}
       >
         <div style={{ display: "flex", gap: 6 }}>
-          <div
-            style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff5f57" }}
-          />
-          <div
-            style={{ width: 10, height: 10, borderRadius: "50%", background: "#febc2e" }}
-          />
-          <div
-            style={{ width: 10, height: 10, borderRadius: "50%", background: "#28c840" }}
-          />
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff5f57" }} />
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#febc2e" }} />
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#28c840" }} />
         </div>
         <span
           style={{
@@ -402,12 +396,8 @@ function LaptopFrame() {
                   border: "1px solid rgba(255,255,255,0.06)",
                 }}
               >
-                <div style={{ fontSize: 9, color: "#6b7280", marginBottom: 2 }}>
-                  {stat.label}
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: stat.color }}>
-                  {stat.value}
-                </div>
+                <div style={{ fontSize: 9, color: "#6b7280", marginBottom: 2 }}>{stat.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: stat.color }}>{stat.value}</div>
               </div>
             ))}
           </div>
@@ -523,7 +513,14 @@ function PhoneFrame() {
             flexShrink: 0,
           }}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3">
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#10b981"
+            strokeWidth="3"
+          >
             <path d="M20 6L9 17l-5-5" />
           </svg>
         </div>
@@ -531,7 +528,9 @@ function PhoneFrame() {
           <div style={{ fontSize: 10, fontWeight: 600, color: "#f3f4f6" }}>
             Session &lsquo;review&rsquo; completed
           </div>
-          <div style={{ fontSize: 9, color: "#9ca3af" }}>12 files &middot; 287K tokens &middot; 4m</div>
+          <div style={{ fontSize: 9, color: "#9ca3af" }}>
+            12 files &middot; 287K tokens &middot; 4m
+          </div>
         </div>
       </div>
 
@@ -711,9 +710,7 @@ function PhoneFrame() {
                 background: i === 0 ? "rgba(6,182,212,0.12)" : "transparent",
               }}
             />
-            <span style={{ fontSize: 8, color: i === 0 ? "#06b6d4" : "#6b7280" }}>
-              {label}
-            </span>
+            <span style={{ fontSize: 8, color: i === 0 ? "#06b6d4" : "#6b7280" }}>{label}</span>
           </div>
         ))}
       </div>
