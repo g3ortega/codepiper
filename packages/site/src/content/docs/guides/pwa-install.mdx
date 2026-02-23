@@ -1,0 +1,204 @@
+---
+title: Install as App (PWA)
+description: Install the CodePiper dashboard as a native-feeling app on your phone, tablet, or desktop.
+section: guides
+order: 6
+---
+
+## Overview
+
+The CodePiper web dashboard is a Progressive Web App (PWA). You can install it on any device for a native app experience — standalone window, app icon, no browser chrome. Once installed, it launches instantly from your home screen, dock, or app launcher.
+
+**What you get after installing:**
+
+- Standalone window (no URL bar or browser tabs)
+- App icon on home screen / dock / taskbar
+- Shows up in your app switcher like a native app
+- Faster launch than opening a browser and navigating
+
+> **Prerequisite:** The dashboard must be accessible over HTTPS. If you're running locally, use one of the [Remote Access](/codepiper/docs/guides/remote-access/) methods first.
+
+## iOS (iPhone & iPad)
+
+**Browser:** Safari (primary), Chrome and Firefox on iOS 16.4+
+
+### Steps
+
+1. Open the CodePiper dashboard URL in **Safari**
+2. Tap the **Share button** (square with upward arrow) at the bottom of the screen
+
+{/* <!-- SCREENSHOT: Safari on iPhone showing the Share button location at the bottom toolbar --> */}
+
+3. Scroll down in the Share Sheet and tap **"Add to Home Screen"**
+
+{/* <!-- SCREENSHOT: iOS Share Sheet with "Add to Home Screen" option highlighted --> */}
+
+4. Optionally edit the app name (defaults to "CodePiper")
+5. Tap **"Add"** in the top-right corner
+
+{/* <!-- SCREENSHOT: iOS "Add to Home Screen" dialog showing name field and Add button --> */}
+
+6. The CodePiper icon appears on your home screen. Tap it to launch in standalone mode.
+
+{/* <!-- SCREENSHOT: iPhone home screen showing the CodePiper PWA icon --> */}
+
+### iOS Limitations
+
+- **No automatic install prompt.** iOS doesn't show "Install this app" banners. Users must go through the Share menu manually.
+- **Push notifications** require iOS 16.4 or later, and only work when the app is installed to the home screen.
+- **Storage limits.** iOS may evict cached data if the PWA hasn't been used in a while (~7 days of inactivity). This doesn't affect the dashboard since it fetches live data from the daemon.
+- **Chrome/Firefox on iOS:** Starting with iOS 16.4, you can also add to home screen from Chrome (Share → Add to Home Screen) and Firefox.
+
+> **iOS 26+:** Apple changed the behavior so all sites added to the home screen open as web apps by default, with an option to toggle "Open as Web App" off.
+
+## Android
+
+**Browser:** Chrome (recommended, creates a WebAPK for full OS integration), Samsung Internet, Edge
+
+### Steps
+
+**Method 1: Install prompt (recommended)**
+
+1. Open the CodePiper dashboard in **Chrome**
+2. After a few seconds, Chrome shows a **mini-infobar** at the bottom: "Add CodePiper to Home screen"
+
+{/* <!-- SCREENSHOT: Chrome on Android showing the mini install infobar at the bottom --> */}
+
+3. Tap the infobar, then tap **"Install"** in the dialog
+
+{/* <!-- SCREENSHOT: Chrome install dialog showing app name, icon, and Install button --> */}
+
+4. CodePiper is installed. It appears on your home screen, in the app drawer, and in Settings → Apps.
+
+{/* <!-- SCREENSHOT: Android home screen / app drawer showing the CodePiper icon --> */}
+
+**Method 2: Browser menu**
+
+If the install banner doesn't appear:
+
+1. Tap the **three-dot menu** (⋮) in Chrome
+2. Tap **"Install app"** or **"Add to Home Screen"**
+3. Confirm installation
+
+### Android Details
+
+- **WebAPK:** On Chrome with Google Play Services, installing creates a real Android APK (a "WebAPK") — the app gets full OS integration including app launcher, Settings → Apps, battery stats, and intent handling.
+- **Other browsers:** Firefox, Brave, and Opera on Android create a home screen shortcut instead of a WebAPK. The app still opens in standalone mode but doesn't appear in Settings → Apps.
+- **Install banner timing:** Chrome requires ~30 seconds of engagement before showing the automatic install prompt. If dismissed, it won't appear again for ~90 days.
+
+## macOS
+
+### Safari (macOS Sonoma 14+)
+
+1. Open the CodePiper dashboard in **Safari**
+2. Click **File → Add to Dock** in the menu bar
+
+{/* <!-- SCREENSHOT: macOS Safari File menu showing "Add to Dock" option --> */}
+
+3. Optionally customize the app name and icon
+4. Click **"Add"**
+
+{/* <!-- SCREENSHOT: macOS "Add to Dock" dialog showing name customization --> */}
+
+5. The app appears in your **Dock** and **Launchpad**. It also shows up in `~/Applications/`.
+
+{/* <!-- SCREENSHOT: macOS Dock showing the CodePiper web app icon --> */}
+
+> **Note:** Safari web apps have **separate** cookies and storage from Safari itself. You'll need to log in again after installing.
+
+### Chrome (any macOS version)
+
+1. Open the CodePiper dashboard in **Chrome**
+2. Look for the **install icon** in the address bar (monitor with a down arrow) on the right side
+
+{/* <!-- SCREENSHOT: Chrome address bar on macOS showing the PWA install icon --> */}
+
+3. Click the install icon → click **"Install"** in the dialog
+4. Alternatively: **Three-dot menu → Cast, Save & Share → Install CodePiper...**
+
+The app appears in the Dock, Launchpad, and `~/Applications/Chrome Apps/`.
+
+## Windows
+
+### Chrome
+
+1. Open the CodePiper dashboard in **Chrome**
+2. Look for the **install icon** in the address bar (right side)
+
+{/* <!-- SCREENSHOT: Chrome address bar on Windows showing the PWA install icon --> */}
+
+3. Click the icon → click **"Install"**
+4. Alternatively: **Three-dot menu → Cast, Save & Share → Install CodePiper...**
+
+### Edge
+
+1. Open the CodePiper dashboard in **Edge**
+2. Look for the **"App available"** icon in the address bar
+
+{/* <!-- SCREENSHOT: Edge address bar on Windows showing the "App available" install icon --> */}
+
+3. Click the icon → click **"Install"**
+4. Alternatively: **Three-dot menu (…) → Apps → Install this site as an app**
+
+### After Installation (Windows)
+
+- The app appears in the **Start Menu**, can be pinned to the **taskbar**
+- Shows in **Settings → Apps → Installed Apps** and can be uninstalled from there
+- Opens in a standalone window with no browser chrome
+
+{/* <!-- SCREENSHOT: Windows taskbar showing CodePiper PWA alongside native apps --> */}
+
+## Linux
+
+**Browser:** Chrome, Chromium, Edge, Brave
+
+1. Open the CodePiper dashboard in **Chrome**
+2. Look for the **install icon** in the address bar (right side)
+3. Click the icon → click **"Install"**
+4. Alternatively: **Three-dot menu → Cast, Save & Share → Install CodePiper...**
+
+After installation:
+
+- The app appears in your **desktop application launcher** (GNOME Activities, KDE menu, etc.)
+- A `.desktop` file is created in `~/.local/share/applications/`
+- Opens in a standalone window
+
+{/* <!-- SCREENSHOT: GNOME Activities showing CodePiper PWA in the app grid --> */}
+
+> **Note:** Firefox on Linux does not support PWA installation (the feature was removed in Firefox 85).
+
+## Browser Support Summary
+
+| Platform | Best Browser | Install Method | Full OS Integration |
+|----------|-------------|----------------|---------------------|
+| iOS | Safari | Share → Add to Home Screen | Home screen icon |
+| Android | Chrome | Auto prompt or menu | Full (WebAPK) |
+| macOS | Safari 17+ / Chrome | File → Add to Dock / Install icon | Dock + Launchpad |
+| Windows | Chrome / Edge | Install icon in address bar | Start Menu + Taskbar |
+| Linux | Chrome | Install icon in address bar | App launcher |
+
+## Troubleshooting
+
+### "Install" option doesn't appear
+
+- Make sure you're accessing the dashboard over **HTTPS** (not `http://`)
+- Verify the page has loaded completely
+- On Android Chrome, you may need to interact with the page for ~30 seconds before the prompt appears
+- Try the browser menu method instead of waiting for the automatic prompt
+
+### App opens in a browser tab instead of standalone
+
+- The app may have been added as a bookmark shortcut rather than installed as a PWA
+- Remove it and re-install using the steps above
+- On iOS, make sure you used "Add to Home Screen" from the Share menu, not "Add Bookmark"
+
+### Lost login session after installing
+
+- Safari on macOS creates separate storage for web apps. You'll need to log in again after installing.
+- This is expected — the installed app and the browser don't share cookies.
+
+## What's next
+
+- **[Remote Access](/codepiper/docs/guides/remote-access/)**: Expose the dashboard over the internet
+- **[Multi-Device Setup](/codepiper/docs/guides/multi-device/)**: Use CodePiper from multiple devices
+- **[Web Dashboard](/codepiper/docs/getting-started/dashboard/)**: Dashboard features and navigation

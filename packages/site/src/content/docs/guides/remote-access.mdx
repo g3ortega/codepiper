@@ -1,6 +1,6 @@
 ---
 title: Remote Access
-description: Three ways to access CodePiper from another machine. SSH tunnel, Nginx reverse proxy, or Caddy.
+description: Expose CodePiper securely over the internet using SSH tunnels, ngrok, Cloudflare Tunnel, or Cloudflare Zero Trust.
 section: guides
 order: 4
 ---
@@ -9,11 +9,14 @@ order: 4
 
 By default, the CodePiper dashboard binds to `127.0.0.1:3000` and the WebSocket server to port `9999`. For remote access, you need to expose both ports securely.
 
-There are three approaches, from simplest to most production-ready:
+Choose the approach that fits your situation:
 
-1. **SSH tunnel** (no setup, encrypted, temporary)
-2. **Nginx reverse proxy** (persistent, TLS, custom domain)
-3. **Caddy reverse proxy** (persistent, automatic TLS, simpler config)
+| Method | Best for | TLS | Persistent URL | Auth layer |
+|--------|----------|-----|----------------|------------|
+| SSH tunnel | Quick access, no setup | Encrypted | No | SSH key |
+| ngrok | Quick demo, sharing | Automatic | Paid only | Paid only |
+| Cloudflare Tunnel | Production, free | Automatic | Yes | None (add Access) |
+| Cloudflare Zero Trust | Production, recommended | Automatic | Yes | Identity-aware |
 
 ## Option 1: SSH Tunnel
 
@@ -49,9 +52,353 @@ For unattended tunnels that automatically reconnect:
 autossh -M 0 -f -N codepiper-tunnel
 ```
 
-## Option 2: Nginx Reverse Proxy
+## Option 2: ngrok
 
-For persistent remote access with TLS and a custom domain.
+[ngrok](https://ngrok.com) creates instant HTTPS tunnels to your local services. Good for quick sharing and demos.
+
+### Install
+
+**macOS:**
+
+```bash
+brew install ngrok
+```
+
+**Linux (Debian/Ubuntu):**
+
+```bash
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list \
+  && sudo apt update \
+  && sudo apt install ngrok
+```
+
+### Authenticate
+
+Sign up at [ngrok.com](https://ngrok.com), then:
+
+```bash
+ngrok config add-authtoken YOUR_AUTHTOKEN
+```
+
+### Quick Start (Single Tunnel)
+
+```bash
+ngrok http 3000
+```
+
+This gives you an HTTPS URL like `https://abcd1234.ngrok-free.app` that proxies to `localhost:3000`. TLS is handled automatically.
+
+### Multiple Tunnels (Dashboard + WebSocket)
+
+CodePiper needs two tunnels — one for the HTTP dashboard (port 3000) and one for the WebSocket server (port 9999). Create an `ngrok.yml` configuration:
+
+```yaml
+version: 3
+agent:
+  authtoken: YOUR_AUTHTOKEN
+
+endpoints:
+  - name: web
+    upstream:
+      url: 3000
+      protocol: http1
+
+  - name: websocket
+    upstream:
+      url: 9999
+      protocol: http1
+```
+
+Start both tunnels:
+
+```bash
+ngrok start --all
+```
+
+{/* <!-- SCREENSHOT: ngrok terminal showing both tunnels running with their assigned URLs --> */}
+
+ngrok assigns random subdomains to each tunnel. Note both URLs — you'll need to configure the dashboard to connect to the WebSocket tunnel URL instead of `localhost:9999`.
+
+### WebSocket Support
+
+ngrok supports WebSocket connections transparently. The protocol upgrade passes through automatically. Clients connect using `wss://` since ngrok terminates TLS.
+
+### Free Tier Limitations
+
+| Resource | Limit |
+|----------|-------|
+| Online endpoints | 3 |
+| HTTP requests | 20,000/month |
+| Data transfer | 1 GB/month |
+| Persistent domains | Paid only |
+
+> **Note:** On the free tier, ngrok shows a browser interstitial warning page on first visit. This doesn't affect API/WebSocket requests, only browser HTML pages. Visitors click "Visit" to proceed (cookie persists for 7 days).
+
+## Option 3: Cloudflare Tunnel
+
+[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) (via `cloudflared`) creates an encrypted tunnel from your machine to Cloudflare's edge. No open ports, no firewall changes, free with unlimited bandwidth.
+
+### Prerequisites
+
+- A Cloudflare account (free plan works)
+- A domain added to Cloudflare (DNS managed by Cloudflare)
+
+### Install
+
+**macOS:**
+
+```bash
+brew install cloudflared
+```
+
+**Debian/Ubuntu:**
+
+```bash
+sudo mkdir -p --mode=0755 /usr/share/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg \
+  | sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main" \
+  | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt-get update && sudo apt-get install cloudflared
+```
+
+**RHEL/CentOS:**
+
+```bash
+curl -fsSl https://pkg.cloudflare.com/cloudflared.repo \
+  | sudo tee /etc/yum.repos.d/cloudflared.repo
+sudo yum update && sudo yum install cloudflared
+```
+
+### Setup
+
+**Step 1: Authenticate with Cloudflare**
+
+```bash
+cloudflared tunnel login
+```
+
+This opens a browser to log in. On success, it writes a certificate to `~/.cloudflared/cert.pem`.
+
+{/* <!-- SCREENSHOT: cloudflared tunnel login browser authorization page --> */}
+
+**Step 2: Create a tunnel**
+
+```bash
+cloudflared tunnel create codepiper
+```
+
+Note the tunnel UUID from the output (e.g., `a1b2c3d4-e5f6-7890-abcd-ef1234567890`).
+
+**Step 3: Create DNS records**
+
+```bash
+cloudflared tunnel route dns codepiper codepiper.yourdomain.com
+cloudflared tunnel route dns codepiper codepiper-ws.yourdomain.com
+```
+
+This creates CNAME records in Cloudflare DNS pointing to your tunnel.
+
+**Step 4: Create the config file**
+
+Create `~/.cloudflared/config.yml`:
+
+```yaml
+tunnel: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+credentials-file: /home/youruser/.cloudflared/a1b2c3d4-e5f6-7890-abcd-ef1234567890.json
+
+ingress:
+  # Web dashboard
+  - hostname: codepiper.yourdomain.com
+    service: http://localhost:3000
+
+  # WebSocket endpoint
+  - hostname: codepiper-ws.yourdomain.com
+    service: http://localhost:9999
+
+  # Catch-all (required — must be last)
+  - service: http_status:404
+```
+
+**Step 5: Run the tunnel**
+
+```bash
+cloudflared tunnel run codepiper
+```
+
+{/* <!-- SCREENSHOT: cloudflared tunnel running, showing connected status --> */}
+
+**Step 6: Verify**
+
+```bash
+cloudflared tunnel info codepiper
+```
+
+Open `https://codepiper.yourdomain.com` in your browser. The dashboard should load with full WebSocket connectivity.
+
+### Validate Your Config
+
+```bash
+# Check config syntax
+cloudflared tunnel ingress validate
+
+# Test which rule matches a URL
+cloudflared tunnel ingress rule https://codepiper-ws.yourdomain.com/ws
+```
+
+### WebSocket Support
+
+Cloudflare Tunnel supports WebSocket connections transparently. Use `http://` (not `ws://`) as the service scheme in your config — the WebSocket upgrade handshake passes through automatically. Clients connect using `wss://` since Cloudflare terminates TLS.
+
+### Run as a System Service
+
+```bash
+# Linux (systemd)
+sudo cloudflared service install
+sudo systemctl enable --now cloudflared
+
+# macOS (launchd)
+sudo cloudflared service install
+sudo launchctl start com.cloudflare.cloudflared
+```
+
+### Daemon Environment
+
+When using any tunnel or reverse proxy, set these environment variables:
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://codepiper.yourdomain.com \
+codepiper daemon --web
+```
+
+- `TRUST_PROXY_HEADERS`: Read `X-Forwarded-*` headers for client IP and protocol detection
+- `FORCE_SECURE_COOKIES`: Set `Secure` flag on session cookies (required for HTTPS)
+- `ALLOWED_ORIGINS`: Restrict WebSocket and CSRF origin checks to your domain
+
+## Option 4: Cloudflare Zero Trust (Recommended)
+
+Cloudflare Zero Trust adds an identity-aware access layer on top of Cloudflare Tunnel. Users must authenticate before they can reach your dashboard. This is the most secure option for internet-facing deployments.
+
+Free for up to 50 users.
+
+### How It Works
+
+```
+User → Cloudflare Edge (TLS) → Access Policy Check → Identity Provider Login
+  → Access Token (JWT cookie) → cloudflared Tunnel → localhost:3000
+```
+
+The user hits your domain, Cloudflare checks if they have a valid Access token, and if not, redirects them to a login page. Only after authentication does traffic reach your origin.
+
+{/* <!-- SCREENSHOT: Cloudflare Access login page showing identity provider options --> */}
+
+### Step 1: Set Up the Tunnel
+
+Follow all the steps in [Option 3: Cloudflare Tunnel](#option-3-cloudflare-tunnel) first. You need a working tunnel before adding Access policies.
+
+### Step 2: Enable an Identity Provider
+
+Go to the [Cloudflare Zero Trust dashboard](https://one.dash.cloudflare.com) → **Settings** → **Authentication** → **Login methods**.
+
+**One-time PIN (simplest, no external IdP):**
+
+Click "Add new" → select **One-time PIN**. Users authenticate by entering their email address, then a 6-digit code sent to that email. No external configuration needed.
+
+{/* <!-- SCREENSHOT: Zero Trust dashboard — Authentication settings showing One-time PIN enabled --> */}
+
+**Third-party identity providers:**
+
+Cloudflare Access supports Google, GitHub, Okta, Azure AD (Microsoft Entra ID), any OIDC provider, and SAML 2.0. You can configure multiple providers — users choose their login method on the Access login page.
+
+To add GitHub as an IdP:
+
+1. Create an OAuth App in GitHub (Settings → Developer Settings → OAuth Apps)
+2. Set the callback URL to `https://<your-team-name>.cloudflareaccess.com/cdn-cgi/access/callback`
+3. In the Zero Trust dashboard, add GitHub as a login method with the Client ID and Secret
+
+{/* <!-- SCREENSHOT: Zero Trust dashboard — Adding GitHub as an identity provider --> */}
+
+### Step 3: Create an Access Application
+
+Go to **Access** → **Applications** → **Add an application** → **Self-hosted**.
+
+Configure:
+
+- **Application name:** `CodePiper Dashboard`
+- **Session duration:** 24 hours (how long before re-authentication)
+- **Application domain:** `codepiper.yourdomain.com`
+- Add a second hostname: `codepiper-ws.yourdomain.com` (so the WebSocket endpoint is also protected)
+
+{/* <!-- SCREENSHOT: Zero Trust dashboard — Creating a self-hosted Access application --> */}
+
+### Step 4: Create an Access Policy
+
+Each application needs at least one policy. A policy defines who can access the application.
+
+**Example: Allow specific emails via One-time PIN**
+
+| Field | Value |
+|-------|-------|
+| Policy name | Team Access |
+| Action | Allow |
+| Include rule | Emails: `alice@example.com`, `bob@example.com` |
+
+**Example: Allow an entire domain via Google SSO**
+
+| Field | Value |
+|-------|-------|
+| Policy name | Company Access |
+| Action | Allow |
+| Include rule | Email domain: `@yourcompany.com` |
+| Require rule | Login method: Google |
+
+{/* <!-- SCREENSHOT: Zero Trust dashboard — Access policy configuration with email rules --> */}
+
+### Policy Rule Types
+
+| Type | Logic | Use case |
+|------|-------|----------|
+| Include | OR | User must match at least one rule |
+| Require | AND | User must match all rules |
+| Exclude | NOT | User is denied if they match any rule |
+
+**Available selectors:**
+
+- Email addresses or email domains
+- Identity provider groups (Okta, Azure AD)
+- IP ranges or countries
+- Login method
+- Service tokens (for API/automation access)
+
+### Step 5: Verify
+
+1. Open `https://codepiper.yourdomain.com` in an incognito window
+2. You should see the Cloudflare Access login page
+3. Authenticate with your chosen method
+4. After authentication, the CodePiper dashboard loads
+
+{/* <!-- SCREENSHOT: Complete flow — Access login page → OTP entry → CodePiper dashboard --> */}
+
+### WebSocket Authentication
+
+Cloudflare Access issues a JWT token as a `CF_Authorization` cookie after login. The browser automatically sends this cookie on the WebSocket upgrade request, so the WebSocket endpoint is authenticated seamlessly.
+
+> **Note:** If you're connecting to the WebSocket from a non-browser client (e.g., a CLI tool), you'll need to include the `CF_Authorization` token in the request headers. For the browser-based dashboard, this works automatically.
+
+### Gotchas
+
+- **OTP + groups:** One-time PIN users don't have IdP group memberships. Group-based policies won't work with OTP — use email-based rules instead.
+- **Token expiry:** If an Access session expires while a WebSocket connection is open, the existing connection continues. New connections (including reconnections) require re-authentication.
+- **Email gating:** With One-time PIN, users whose emails don't match an Allow policy never receive the PIN email. Cloudflare silently drops it to prevent email enumeration.
+
+## Option 5: Nginx Reverse Proxy
+
+For persistent remote access with TLS and a custom domain, without Cloudflare.
 
 ### Prerequisites
 
@@ -107,22 +454,7 @@ server {
 }
 ```
 
-### Daemon Environment
-
-Set these variables when starting the daemon:
-
-```bash
-TRUST_PROXY_HEADERS=true \
-FORCE_SECURE_COOKIES=true \
-ALLOWED_ORIGINS=https://codepiper.example.com \
-codepiper daemon --web
-```
-
-- `TRUST_PROXY_HEADERS`: Tells the daemon to read `X-Forwarded-*` headers for client IP and protocol detection
-- `FORCE_SECURE_COOKIES`: Sets the `Secure` flag on session cookies (required for HTTPS)
-- `ALLOWED_ORIGINS`: Restricts WebSocket and CSRF origin checks to your domain
-
-## Option 3: Caddy Reverse Proxy
+## Option 6: Caddy Reverse Proxy
 
 Caddy handles TLS certificates automatically via Let's Encrypt.
 
@@ -135,14 +467,7 @@ codepiper.example.com {
 }
 ```
 
-That's it. Caddy automatically obtains and renews certificates. The same daemon environment variables apply:
-
-```bash
-TRUST_PROXY_HEADERS=true \
-FORCE_SECURE_COOKIES=true \
-ALLOWED_ORIGINS=https://codepiper.example.com \
-codepiper daemon --web
-```
+That's it. Caddy automatically obtains and renews certificates. Use the same daemon environment variables as described in [Daemon Environment](#daemon-environment).
 
 ## Security Considerations
 
@@ -151,11 +476,13 @@ When exposing CodePiper to the internet:
 - **Always use TLS.** Never expose the HTTP port directly. The dashboard transmits session cookies and terminal data.
 - **Set `ALLOWED_ORIGINS`.** This prevents cross-site WebSocket hijacking.
 - **Use strong passwords and MFA.** Both are enforced by default, but choosing a long password matters more when the login page is internet-facing.
-- **Consider IP restrictions.** Use firewall rules or Nginx `allow`/`deny` directives to limit access to known IPs.
+- **Consider IP restrictions.** Use firewall rules, Nginx `allow`/`deny` directives, or Cloudflare Access policies to limit access.
 - **Review the audit log.** Check `codepiper audit` regularly for unexpected activity.
+- **Prefer Cloudflare Zero Trust** for internet-facing deployments. It adds a second authentication layer before traffic reaches your origin.
 
 ## What's next
 
+- **[Install as App (PWA)](/codepiper/docs/guides/pwa-install/)**: Install CodePiper on your phone, tablet, or desktop
 - **[Multi-Device Setup](/codepiper/docs/guides/multi-device/)**: Access from phone, tablet, and other devices
 - **[Security Model](/codepiper/docs/concepts/security/)**: Full security architecture
 - **[Troubleshooting](/codepiper/docs/guides/troubleshooting/)**: Common issues and fixes
