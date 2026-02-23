@@ -38,6 +38,7 @@ function IconBox({ html, color }: { html: string; color: string }) {
         backgroundColor: colorMap[color]?.bg,
         color: colorMap[color]?.text,
       }}
+      aria-hidden="true"
       // biome-ignore lint/security/noDangerouslySetInnerHtml: SVGs are hardcoded string literals, not user input
       dangerouslySetInnerHTML={{ __html: html }}
     />
@@ -438,6 +439,11 @@ export default function FeaturesCarousel({ features }: Props) {
             }}
           />
         ))}
+      </div>
+
+      {/* Screen reader announcement for slide changes */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        Showing slide {currentIndex + 1} of {total}: {features[currentIndex]?.title}
       </div>
     </section>
   );

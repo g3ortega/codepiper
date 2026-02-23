@@ -61,6 +61,8 @@ export default function ConstellationView({ active, progress }: ConstellationPro
         viewBox="0 0 600 600"
         width="100%"
         style={{ maxWidth: 500, height: "auto" }}
+        role="img"
+        aria-label="Constellation diagram showing CodePiper daemon connected to Desktop, Mobile, Tablet, OpenClaw, and tmux devices"
       >
         <defs>
           <linearGradient id="line-gradient" x1="0%" y1="0%" x2="100%" y2="100%">

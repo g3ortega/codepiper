@@ -39,6 +39,45 @@ const breadcrumbData = {
   itemListElement: breadcrumbItems,
 };
 
+// HowTo JSON-LD for the quick-start page
+const isQuickStart = currentPath.includes("/getting-started/quick-start");
+const howToData = isQuickStart
+  ? {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      name: "Get started with CodePiper",
+      description: "Set up CodePiper and create your first AI coding session in under 5 minutes.",
+      totalTime: "PT5M",
+      step: [
+        {
+          "@type": "HowToStep",
+          name: "Install CodePiper",
+          text: "Install CodePiper globally with npm: npm i -g codepiper",
+        },
+        {
+          "@type": "HowToStep",
+          name: "Start the daemon",
+          text: "Run codepiper daemon --web to start the daemon with the web dashboard.",
+        },
+        {
+          "@type": "HowToStep",
+          name: "Complete onboarding",
+          text: "Open localhost:3000, enter the bootstrap password, set a permanent password, and configure MFA.",
+        },
+        {
+          "@type": "HowToStep",
+          name: "Create your first session",
+          text: "Run codepiper start -p claude-code -d ~/projects/my-app to create a session.",
+        },
+        {
+          "@type": "HowToStep",
+          name: "Interact with your session",
+          text: "Use the web terminal, CLI attach, or send prompts to interact with your running session.",
+        },
+      ],
+    }
+  : null;
+
 // Sidebar navigation — links with `href: "#"` show as "soon" until content exists
 const sidebar = [
   {
@@ -119,6 +158,7 @@ const nextPage =
 
 <BaseLayout title={title} description={description}>
   <StructuredData data={breadcrumbData} />
+  {howToData && <StructuredData data={howToData} />}
   <NavBar variant="docs" />
 
   <div class="flex min-h-screen pt-16">
@@ -195,7 +235,7 @@ const nextPage =
     </aside>
 
     <!-- Main content -->
-    <main class="flex-1 min-w-0 px-4 md:px-8 py-8 lg:py-12" data-pagefind-body>
+    <main id="main-content" class="flex-1 min-w-0 px-4 md:px-8 py-8 lg:py-12" data-pagefind-body>
       <div class="max-w-3xl mx-auto">
         <div class="mb-10">
           <h1 class="text-h1 font-bold tracking-tight text-foreground">
