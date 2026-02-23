@@ -51,7 +51,8 @@ async function waitForHealth(baseUrl: string, timeoutMs: number): Promise<void> 
 }
 
 function stripAnsi(input: string): string {
-  return input.replace(new RegExp("\\u001b\\[[0-9;]*m", "g"), "");
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ANSI escape sequence matching
+  return input.replace(/\u001b\[[0-9;]*m/g, "");
 }
 
 function readCookieToken(setCookie: string | null, name: string): string | null {
