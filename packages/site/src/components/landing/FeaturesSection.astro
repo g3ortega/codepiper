@@ -1,4 +1,6 @@
 ---
+import FeaturesCarousel from "../interactive/FeaturesCarousel";
+
 const features = [
   {
     icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>`,
@@ -98,43 +100,8 @@ const features = [
       Built for developers who run AI coding agents at scale.
     </p>
 
-    <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {features.map((feature, i) => (
-        <div
-          class:list={[
-            "feature-card group relative p-6 rounded-xl border border-border bg-card/60 backdrop-blur-sm",
-            "hover:-translate-y-1",
-            "transition-all duration-200",
-            `reveal stagger-${Math.min(i + 1, 6)}`,
-          ]}
-          data-color={feature.color}
-        >
-          <div class:list={[
-            "w-10 h-10 rounded-lg flex items-center justify-center mb-4 transition-colors duration-200",
-            feature.color === "primary" && "bg-primary/10 text-primary group-hover:bg-primary/15",
-            feature.color === "secondary" && "bg-secondary/10 text-secondary group-hover:bg-secondary/15",
-            feature.color === "emerald" && "bg-emerald/10 text-emerald group-hover:bg-emerald/15",
-            feature.color === "amber" && "bg-amber/10 text-amber group-hover:bg-amber/15",
-          ]}>
-            <Fragment set:html={feature.icon} />
-          </div>
-
-          <div class="flex items-center gap-2 mb-2">
-            <h3 class="text-base font-semibold text-foreground">
-              {feature.title}
-            </h3>
-            {feature.claudeOnly && (
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber/8 text-amber/70 border border-amber/15">
-                <svg class="w-2 h-2" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></svg>
-                Claude Code
-              </span>
-            )}
-          </div>
-          <p class="text-sm text-muted leading-relaxed">
-            {feature.description}
-          </p>
-        </div>
-      ))}
+    <div class="mt-16">
+      <FeaturesCarousel client:visible features={features} />
     </div>
   </div>
 </section>
