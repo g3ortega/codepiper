@@ -1,0 +1,95 @@
+---
+title: Nginx Reverse Proxy
+description: Self-hosted reverse proxy with TLS and full control over CodePiper's network configuration.
+section: guides
+order: 4.6
+---
+
+## Overview
+
+For persistent remote access with TLS and a custom domain, without relying on a third-party tunnel service.
+
+| | |
+|---|---|
+| **Best for** | Self-hosted, full control, existing Nginx infrastructure |
+| **TLS** | Let's Encrypt (certbot) or your own certificates |
+| **Persistent URL** | Yes (your domain) |
+| **Auth layer** | None built-in (add `auth_basic`, fail2ban, or a WAF) |
+
+## Prerequisites
+
+- A domain name pointing to your server (e.g. `codepiper.example.com`)
+- Nginx installed
+- SSL certificate (Let's Encrypt via certbot, or your own)
+
+## Configuration
+
+```nginx
+upstream codepiper_http {
+    server 127.0.0.1:3000;
+}
+
+upstream codepiper_ws {
+    server 127.0.0.1:9999;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name codepiper.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/codepiper.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/codepiper.example.com/privkey.pem;
+
+    # HTTP API and dashboard
+    location / {
+        proxy_pass http://codepiper_http;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # WebSocket
+    location /ws {
+        proxy_pass http://codepiper_ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400;
+    }
+}
+
+server {
+    listen 80;
+    server_name codepiper.example.com;
+    return 301 https://$host$request_uri;
+}
+```
+
+## TLS with Let's Encrypt
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d codepiper.example.com
+```
+
+Certbot will automatically modify the Nginx config to include certificate paths and set up auto-renewal.
+
+## Daemon Environment
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://codepiper.example.com \
+codepiper daemon --web
+```
+
+## When to Use Something Else
+
+Nginx gives you full control but requires managing certificates, server configuration, and firewall rules yourself. For automatic TLS without manual renewal, try [Caddy](/codepiper/docs/guides/remote-access/caddy/). For zero-config solutions, try [Tailscale](/codepiper/docs/guides/remote-access/tailscale/) or [Cloudflare Tunnel](/codepiper/docs/guides/remote-access/cloudflare-tunnel/).
+
+See the [Remote Access overview](/codepiper/docs/guides/remote-access/overview/) for a comparison of all methods.

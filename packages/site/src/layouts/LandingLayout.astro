@@ -2,6 +2,7 @@
 import Footer from "@/components/shared/Footer.astro";
 import NavBar from "@/components/shared/NavBar.astro";
 import ScrollProgress from "@/components/shared/ScrollProgress.astro";
+import StructuredData from "@/components/shared/StructuredData.astro";
 import BaseLayout from "./BaseLayout.astro";
 
 interface Props {
@@ -10,12 +11,74 @@ interface Props {
 }
 
 const { title, description } = Astro.props;
+
+const softwareApp = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "CodePiper",
+  description:
+    "Orchestrate multiple AI coding sessions from a single daemon. Monitor from your phone. Respond from your iPad. Attach from raw tmux.",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "macOS, Linux",
+  url: "https://g3ortega.github.io/codepiper/",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  author: { "@type": "Person", name: "Gerardo Ortega" },
+};
+
+const faqPage = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "What is CodePiper?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "CodePiper is an open-source remote orchestrator for managing multiple live interactive AI coding-agent sessions. It lets you spawn, monitor, and control Claude Code and Codex CLI sessions from a single daemon with a web dashboard, CLI, or raw tmux.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "How does CodePiper multi-device access work?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Sessions run inside tmux on your machine and persist independently of any client. Start a session on your laptop, check progress from your phone's browser, respond from an iPad, or attach from raw tmux on a server. Close the lid and your agents keep going.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What AI coding tools does CodePiper support?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "CodePiper currently supports Claude Code (with native hooks, transcript tailing, and model switching) and Codex CLI (via tmux integration). The open provider interface can be extended for any TUI-based AI coding tool.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Is CodePiper free and open source?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. CodePiper is free and open source, built with Bun and TypeScript. Everything runs locally on your machine — SQLite database, encrypted secrets, session data. No cloud accounts or telemetry required.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "How do I install CodePiper?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Install globally with npm: 'npm i -g codepiper'. You need Bun v1.3.5+, tmux v3.0+, and at least one AI coding CLI (Claude Code or Codex). Run 'codepiper doctor' to verify your setup.",
+      },
+    },
+  ],
+};
 ---
 
 <BaseLayout title={title} description={description}>
+  <StructuredData data={softwareApp} />
+  <StructuredData data={faqPage} />
   <ScrollProgress />
   <NavBar variant="landing" />
-  <main>
+  <main id="main-content">
     <slot />
   </main>
   <Footer />

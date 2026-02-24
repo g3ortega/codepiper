@@ -1,0 +1,57 @@
+---
+title: Remote Access
+description: Choose the right method to expose CodePiper securely over the network.
+section: guides
+order: 4
+---
+
+## Overview
+
+By default, the CodePiper dashboard binds to `127.0.0.1:3000` and the WebSocket server to port `9999`. For remote access, you need to expose both ports securely.
+
+Choose the approach that fits your situation:
+
+| Method | Best for | TLS | Persistent URL | Auth layer |
+|--------|----------|-----|----------------|------------|
+| [SSH Tunnel](/codepiper/docs/guides/remote-access/ssh-tunnel/) | Quick access, no setup | Encrypted | No | SSH key |
+| [Tailscale](/codepiper/docs/guides/remote-access/tailscale/) | Private mesh, zero config | WireGuard | MagicDNS | Tailnet ACL |
+| [ngrok](/codepiper/docs/guides/remote-access/ngrok/) | Quick demo, sharing | Automatic | Paid only | Paid only |
+| [Cloudflare Tunnel](/codepiper/docs/guides/remote-access/cloudflare-tunnel/) | Production, free | Automatic | Yes | None (add Access) |
+| [Cloudflare Zero Trust](/codepiper/docs/guides/remote-access/cloudflare-zero-trust/) | Production, recommended | Automatic | Yes | Identity-aware |
+| [Nginx](/codepiper/docs/guides/remote-access/nginx/) | Self-hosted, full control | Let's Encrypt | Yes | None (add your own) |
+| [Caddy](/codepiper/docs/guides/remote-access/caddy/) | Self-hosted, automatic TLS | Automatic | Yes | None (add your own) |
+
+## Daemon Environment
+
+When using any tunnel or reverse proxy, set these environment variables:
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://codepiper.yourdomain.com \
+codepiper daemon --web
+```
+
+- `TRUST_PROXY_HEADERS`: Read `X-Forwarded-*` headers for client IP and protocol detection
+- `FORCE_SECURE_COOKIES`: Set `Secure` flag on session cookies (required for HTTPS)
+- `ALLOWED_ORIGINS`: Restrict WebSocket and CSRF origin checks to your domain
+
+> **Note:** SSH Tunnel and Tailscale (direct IP mode) don't need these variables since they forward raw TCP without modifying headers.
+
+## Security Considerations
+
+When exposing CodePiper to the internet:
+
+- **Always use TLS.** Never expose the HTTP port directly. The dashboard transmits session cookies and terminal data.
+- **Set `ALLOWED_ORIGINS`.** This prevents cross-site WebSocket hijacking.
+- **Use strong passwords and MFA.** Both are enforced by default, but choosing a long password matters more when the login page is internet-facing.
+- **Consider IP restrictions.** Use firewall rules, Nginx `allow`/`deny` directives, or Cloudflare Access policies to limit access.
+- **Review the audit log.** Check `codepiper audit` regularly for unexpected activity.
+- **Prefer Cloudflare Zero Trust or Tailscale** for internet-facing deployments. Both add a second authentication layer before traffic reaches your origin.
+
+## What's next
+
+- **[Install as App (PWA)](/codepiper/docs/guides/pwa-install/)**: Install CodePiper on your phone, tablet, or desktop
+- **[Multi-Device Setup](/codepiper/docs/guides/multi-device/)**: Access from phone, tablet, and other devices
+- **[Security Model](/codepiper/docs/concepts/security/)**: Full security architecture
+- **[Troubleshooting](/codepiper/docs/guides/troubleshooting/)**: Common issues and fixes

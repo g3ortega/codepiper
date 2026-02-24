@@ -1,0 +1,454 @@
+# CodePiper — Full Documentation
+
+> Orchestrate multiple AI coding sessions from a single daemon.
+
+CodePiper is an open-source remote orchestrator for managing multiple live interactive coding-agent sessions. Built with Bun + TypeScript. Everything runs locally on your machine — SQLite database, encrypted secrets, session data. No cloud accounts, no telemetry.
+
+- GitHub: https://github.com/g3ortega/codepiper
+- Documentation: https://g3ortega.github.io/codepiper/docs/
+- Summary: https://g3ortega.github.io/codepiper/llms.txt
+
+---
+
+# Getting Started
+
+## Quick Start
+
+Get CodePiper running and create your first AI coding session in under 5 minutes.
+
+### Prerequisites
+
+- **Bun** v1.3.5 or later (the JavaScript runtime CodePiper is built on)
+- **tmux** v3.0 or later (provides the terminal sessions your agents run inside)
+- **At least one AI coding CLI**: Claude Code or Codex
+
+Check everything with a single command:
+
+```bash
+codepiper doctor
+```
+
+### Install
+
+```bash
+npm i -g codepiper
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/g3ortega/codepiper.git
+cd codepiper
+bun install
+bun link
+```
+
+### Start the daemon
+
+```bash
+codepiper daemon --web
+```
+
+On first run, you'll see output like this:
+
+```
+✓ Daemon started on /tmp/codepiper.sock
+✓ Web dashboard at http://127.0.0.1:3000
+✓ Bootstrap password: k8f2-mN9x-pL3q
+```
+
+Save the bootstrap password. You'll need it to log in for the first time.
+
+### Complete onboarding
+
+Open `http://localhost:3000` in your browser. You'll be prompted to:
+
+1. **Enter the bootstrap password** printed in your terminal
+2. **Set a permanent password** for future logins
+3. **Set up MFA**: scan the QR code with any authenticator app and enter the verification code
+
+MFA is mandatory.
+
+### Create your first session
+
+From the CLI:
+
+```bash
+codepiper start -p claude-code -d ~/projects/my-app
+```
+
+From the web dashboard: go to Sessions → Create Session, choose your provider and working directory, click Create.
+
+### Interact with your session
+
+- **Web terminal**: Click on the session in the dashboard for live terminal view
+- **CLI attach**: `codepiper attach <session-id>`
+- **Send a prompt**: `codepiper send <session-id> "What is this project?"`
+
+### Stop or resume
+
+```bash
+codepiper stop <session-id>
+codepiper start --resume <session-id>
+```
+
+Sessions persist across daemon restarts.
+
+---
+
+## Installation
+
+### System Requirements
+
+| Dependency | Minimum Version | Purpose |
+|-----------|----------------|---------|
+| Bun | 1.3.5 | JavaScript runtime |
+| tmux | 3.0 | Terminal session management |
+| At least one AI coding CLI | Latest | The agent that runs inside sessions |
+
+### Supported Platforms
+
+| OS | Architecture |
+|----|-------------|
+| macOS (Darwin) | x64 (Intel), arm64 (Apple Silicon) |
+| Linux | x64, arm64 |
+
+Windows is not currently supported. Use WSL2 for Windows machines.
+
+### Install Bun
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+### Install tmux
+
+macOS: `brew install tmux`
+Ubuntu/Debian: `sudo apt update && sudo apt install tmux`
+Fedora/RHEL: `sudo dnf install tmux`
+
+### Install a Provider
+
+Claude Code (recommended):
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+Codex CLI:
+```bash
+npm install -g @openai/codex
+```
+
+### Install CodePiper
+
+```bash
+npm i -g codepiper
+```
+
+### Verify Installation
+
+```bash
+codepiper doctor
+```
+
+---
+
+## Your First Session
+
+### Creating a Session
+
+```bash
+codepiper start -p claude-code -d ~/projects/my-app
+```
+
+Session options:
+- `--billing api` — pay-per-token (required for automated workflows)
+- `--worktree --create-branch feature/refactor` — git worktree isolation
+- `--env-set my-api-keys` — attach encrypted environment variables
+- `-- --model opus` — pass arguments to the provider
+
+### Interacting
+
+- **Web terminal**: Live xterm.js terminal with image paste support
+- **CLI attach**: `codepiper attach <id>` (Ctrl+B D to detach)
+- **Send text**: `codepiper send <id> "refactor the auth module"`
+- **Send keys**: `codepiper keys <id> ctrl+c`
+- **Send images**: `codepiper send <id> --image screenshot.png "what's wrong?"`
+
+### Session Persistence
+
+Sessions survive daemon restarts, SSH disconnects, laptop lid closes, and client disconnects. The daemon re-adopts orphaned tmux sessions on startup.
+
+---
+
+## Web Dashboard
+
+The dashboard is a React SPA served by the daemon at `http://localhost:3000`.
+
+### Pages
+
+- **Sessions**: Create, list, and manage sessions with live terminal view
+- **Analytics**: Token usage charts, model distribution, cache hit rate, cost estimation
+- **Policies**: Create and manage permission rules, view audit log
+- **Workflows**: Define and execute multi-session workflows
+- **Settings**: Daemon config, workspaces, encrypted env sets, auth management
+
+### Mobile PWA
+
+Install as an app from your mobile browser. Push notifications alert you when sessions finish, crash, or need attention.
+
+---
+
+# Concepts
+
+## Architecture Overview
+
+CodePiper is a daemon-based orchestrator. A single long-running process manages all sessions, policies, analytics, and state.
+
+```
+CLI ──(unix socket)──▶ Daemon ──(tmux)──▶ Claude Code / Codex
+Web UI ──(HTTP/WS)──▶  (Bun + SQLite)
+```
+
+### Key Services
+
+| Service | Responsibility |
+|---------|---------------|
+| SessionManager | Spawn, stop, resume, and track provider sessions via tmux |
+| PolicyEngine | Evaluate permission requests against rules, auto-handle decisions |
+| WorkflowExecutor | Run multi-step YAML/JSON workflows across sessions |
+| AuthService | Password + TOTP authentication, session tokens, rate limiting |
+| TranscriptTailer | Parse Claude Code JSONL transcripts for token/tool analytics |
+| EventBus | Route events from hooks, transcripts, and PTY to subscribers |
+
+### Why tmux?
+
+- Process isolation: each session runs in its own tmux session
+- Persistence: tmux sessions survive daemon restarts and SSH disconnects
+- Input fidelity: `tmux send-keys` is indistinguishable from physical keyboard input
+- Output capture: `tmux capture-pane` provides terminal state for the web dashboard
+- Universal: works with any provider that runs in a terminal
+
+### Data Flow
+
+Events flow from Claude Code hooks (structured events), transcript tailing (JSONL token/tool data), PTY capture (terminal output), and optional statusline heartbeats. All events are persisted to SQLite before processing ("persist first, process later").
+
+### Permission Auto-Handling
+
+1. Claude Code sends a PermissionRequest via hooks
+2. PolicyEngine evaluates against matching rules
+3. Decision stored in audit log
+4. Allow: daemon sends "1"+Enter to tmux. Deny: "2"+Enter. Ask: surfaces to user.
+
+---
+
+## Sessions & Providers
+
+A session is a running instance of an AI coding agent inside a tmux session named `codepiper-<uuid>`.
+
+### Claude Code Provider
+
+Full integration: native hooks, transcript tailing, model switching, dangerous mode, native-hooks policy channel, high analytics fidelity.
+
+### Codex CLI Provider
+
+Simpler integration: no hooks, no transcripts, no model switching, input-preflight policy channel, low analytics fidelity.
+
+### Billing Modes
+
+- **Subscription** (default): Scrubs ANTHROPIC_API_KEY, uses Max plan billing. For interactive use.
+- **API**: Preserves ANTHROPIC_API_KEY, pay-per-token. Required for automated workflows per Anthropic ToS.
+
+### Model Switching (Claude Code)
+
+```bash
+codepiper model <id>         # Check current model
+codepiper model <id> opus    # Switch to Opus
+codepiper model <id> sonnet  # Switch to Sonnet
+```
+
+---
+
+## Permission Policies
+
+Control what AI agents can do with rule-based policies. Every decision is logged in an audit trail.
+
+### Rule Structure
+
+```json
+{
+  "action": "allow",
+  "tool": "Read",
+  "reason": "Reading files is always safe"
+}
+```
+
+Actions: `allow`, `deny`, `ask`. Tool field supports glob patterns. Rules are evaluated in priority order; first match wins.
+
+### Common Patterns
+
+- Allow everything except destructive commands
+- Read-only mode (allow Read/Glob/Grep/LS, deny everything else)
+- Review all shell commands, allow everything else
+
+### Policy Sets
+
+Group related policies for easy assignment to sessions.
+
+---
+
+## Workflows
+
+Chain multi-session tasks with YAML/JSON DSL.
+
+### Step Types
+
+- **session**: Spawn a session, send a prompt, wait for condition, extract results
+- **if**: Conditional branching based on previous results
+- **parallel**: Run multiple steps concurrently (wait modes: all, any, none)
+- **foreach**: Loop over a list of items
+- **log**: Output a message
+
+### Wait Conditions
+
+idle_prompt, permission_prompt, stop, event (Claude Code only), timeout (both providers).
+
+### Error Handling
+
+Strategies: fail (default), continue, retry (with configurable attempts and delay).
+
+### Variable Substitution
+
+`${...}` syntax for input variables, step results, and loop variables.
+
+---
+
+## Analytics & Tokens
+
+Track token usage from every Claude Code session: prompt tokens, completion tokens, cache creation/read tokens, model distribution, tool usage.
+
+### Cost Estimation
+
+Per-model pricing tables applied to token counts. Separate rates for input, output, cache write, and cache read.
+
+### Cache Hit Rate
+
+```
+cache_hit_rate = cache_read_tokens / (prompt_tokens + cache_creation_tokens + cache_read_tokens)
+```
+
+---
+
+## Security Model
+
+Single-user, self-hosted deployment. Five security layers:
+
+1. **Transport**: Unix socket (CLI) or authenticated HTTP (web)
+2. **Authentication**: Password (Argon2) + TOTP MFA (mandatory)
+3. **Encryption**: AES-256-GCM for stored secrets
+4. **Isolation**: API key scrubbing, session sandboxing
+5. **Auditing**: Full decision trail for all policy actions
+
+### Bootstrap Flow
+
+Start daemon → prints bootstrap password → enter in browser → set password → set up MFA → normal login.
+
+### Remote Access
+
+Recommended: SSH tunnel. For persistent access: reverse proxy with TLS (Nginx or Caddy).
+
+---
+
+# Guides
+
+## Multi-Device Setup
+
+The daemon owns your sessions. Every client connects to the same daemon.
+
+- Start from desktop CLI, check from phone, follow up from tablet, attach via SSH
+- Local network: bind to `0.0.0.0`
+- SSH tunnel: `ssh -L 3000:localhost:3000 -L 9999:localhost:9999 your-server`
+- Mobile PWA: install from browser, get push notifications
+
+## Remote Access
+
+Multiple options: SSH tunnel (simplest), Tailscale (zero-config VPN), ngrok (quick public URL), Cloudflare Tunnel (production), Nginx/Caddy reverse proxy.
+
+## Policy Configuration
+
+Create policies via CLI, web dashboard, or API. Use policy sets to group rules. Set default action (ask/deny) for unmatched requests.
+
+## Workflow Authoring
+
+Define workflows in YAML with session steps, conditionals, parallel branches, loops, and variable extraction. Error handling with retry and continue strategies.
+
+## PWA Installation
+
+Install the dashboard as a native-like app from iOS Safari, Android Chrome, or desktop browsers.
+
+---
+
+# API Reference
+
+## REST API
+
+The daemon exposes HTTP endpoints over Unix socket (CLI) and HTTP port (web dashboard, prefixed with `/api`).
+
+### Sessions (11 endpoints)
+GET /sessions, POST /sessions, GET /sessions/:id, POST /sessions/:id/stop, POST /sessions/:id/kill, POST /sessions/:id/resume, POST /sessions/:id/send, POST /sessions/:id/keys, GET /sessions/:id/output, POST /sessions/:id/resize, POST /sessions/:id/upload-image
+
+### Policies (5 endpoints)
+GET /policies, POST /policies, GET /policies/:id, PUT /policies/:id, DELETE /policies/:id
+
+### Policy Sets (8 endpoints)
+CRUD + member management + audit log
+
+### Analytics (7 endpoints)
+GET /analytics/overview, /activity-timeline, /token-usage, /tokens-by-model, /sessions-by-provider, /tool-usage, /policy-decisions
+
+### Git (9 endpoints per session)
+Status, branches, log, diff, file, file-raw, diff-stat, stage, unstage
+
+### Workflows (10 endpoints)
+CRUD + execute, executions, cancel
+
+### Auth (11 endpoints)
+Status, setup, login, logout, password, MFA setup/verify, sessions, revoke-all, CLI-only reset operations
+
+### Settings (13 endpoints)
+Daemon settings, workspaces, environment sets
+
+## WebSocket Protocol
+
+WebSocket server on port 9999. Topics: session output, session events, all sessions, workflow execution progress. Supports PTY input over WebSocket.
+
+## CLI Commands
+
+daemon, start, stop, kill, resize, sessions, attach, send, keys, slash, tail, model, policy, policy-set, audit, analytics, providers, workspace, env-set, logs, doctor, workflow, auth, hook-forward (internal).
+
+---
+
+# Contributing
+
+## Development Setup
+
+```bash
+git clone https://github.com/g3ortega/codepiper.git
+cd codepiper
+bun install
+bun run daemon:web  # Start with web dashboard
+```
+
+Code quality: Biome (double quotes, semicolons, 2-space indent, 100 char line width).
+
+## Adding a Provider
+
+Implement the Provider interface: startSession, sendText, sendKeys, stopSession, onEvent. Optional: switchModel, getCurrentModel. Declare capabilities. Register in the provider registry.
+
+## Testing
+
+```bash
+bun test              # All tests
+bun test --coverage   # With coverage
+bun run pre-commit    # Full quality check (lint + typecheck + tests)
+```

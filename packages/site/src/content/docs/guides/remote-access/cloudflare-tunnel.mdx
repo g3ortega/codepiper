@@ -1,0 +1,152 @@
+---
+title: Cloudflare Tunnel
+description: Expose CodePiper through Cloudflare's edge network with automatic TLS, no open ports, and unlimited bandwidth.
+section: guides
+order: 4.4
+---
+
+## Overview
+
+[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) (via `cloudflared`) creates an encrypted tunnel from your machine to Cloudflare's edge. No open ports, no firewall changes, free with unlimited bandwidth.
+
+| | |
+|---|---|
+| **Best for** | Production deployments, free persistent URLs |
+| **TLS** | Automatic (Cloudflare edge) |
+| **Persistent URL** | Yes (your domain) |
+| **Auth layer** | None (add [Cloudflare Zero Trust](/codepiper/docs/guides/remote-access/cloudflare-zero-trust/)) |
+
+## Prerequisites
+
+- A Cloudflare account (free plan works)
+- A domain added to Cloudflare (DNS managed by Cloudflare)
+
+## Install
+
+**macOS:**
+
+```bash
+brew install cloudflared
+```
+
+**Debian/Ubuntu:**
+
+```bash
+sudo mkdir -p --mode=0755 /usr/share/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg \
+  | sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main" \
+  | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt-get update && sudo apt-get install cloudflared
+```
+
+**RHEL/CentOS:**
+
+```bash
+curl -fsSl https://pkg.cloudflare.com/cloudflared.repo \
+  | sudo tee /etc/yum.repos.d/cloudflared.repo
+sudo yum update && sudo yum install cloudflared
+```
+
+## Setup
+
+### Step 1: Authenticate with Cloudflare
+
+```bash
+cloudflared tunnel login
+```
+
+This opens a browser to log in. On success, it writes a certificate to `~/.cloudflared/cert.pem`.
+
+### Step 2: Create a Tunnel
+
+```bash
+cloudflared tunnel create codepiper
+```
+
+Note the tunnel UUID from the output (e.g., `a1b2c3d4-e5f6-7890-abcd-ef1234567890`).
+
+### Step 3: Create DNS Records
+
+```bash
+cloudflared tunnel route dns codepiper codepiper.yourdomain.com
+cloudflared tunnel route dns codepiper codepiper-ws.yourdomain.com
+```
+
+This creates CNAME records in Cloudflare DNS pointing to your tunnel.
+
+### Step 4: Create the Config File
+
+Create `~/.cloudflared/config.yml`:
+
+```yaml
+tunnel: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+credentials-file: /home/youruser/.cloudflared/a1b2c3d4-e5f6-7890-abcd-ef1234567890.json
+
+ingress:
+  # Web dashboard
+  - hostname: codepiper.yourdomain.com
+    service: http://localhost:3000
+
+  # WebSocket endpoint
+  - hostname: codepiper-ws.yourdomain.com
+    service: http://localhost:9999
+
+  # Catch-all (required — must be last)
+  - service: http_status:404
+```
+
+### Step 5: Run the Tunnel
+
+```bash
+cloudflared tunnel run codepiper
+```
+
+### Step 6: Verify
+
+```bash
+cloudflared tunnel info codepiper
+```
+
+Open `https://codepiper.yourdomain.com` in your browser. The dashboard should load with full WebSocket connectivity.
+
+## Validate Your Config
+
+```bash
+# Check config syntax
+cloudflared tunnel ingress validate
+
+# Test which rule matches a URL
+cloudflared tunnel ingress rule https://codepiper-ws.yourdomain.com/ws
+```
+
+## WebSocket Support
+
+Cloudflare Tunnel supports WebSocket connections transparently. Use `http://` (not `ws://`) as the service scheme in your config — the WebSocket upgrade handshake passes through automatically. Clients connect using `wss://` since Cloudflare terminates TLS.
+
+## Run as a System Service
+
+```bash
+# Linux (systemd)
+sudo cloudflared service install
+sudo systemctl enable --now cloudflared
+
+# macOS (launchd)
+sudo cloudflared service install
+sudo launchctl start com.cloudflare.cloudflared
+```
+
+## Daemon Environment
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://codepiper.yourdomain.com \
+codepiper daemon --web
+```
+
+## When to Use Something Else
+
+Cloudflare Tunnel is excellent for production with custom domains. Consider adding [Cloudflare Zero Trust](/codepiper/docs/guides/remote-access/cloudflare-zero-trust/) for identity-aware access control on top. If you don't want to manage a domain, consider [Tailscale](/codepiper/docs/guides/remote-access/tailscale/) for private access or [ngrok](/codepiper/docs/guides/remote-access/ngrok/) for quick sharing.
+
+See the [Remote Access overview](/codepiper/docs/guides/remote-access/overview/) for a comparison of all methods.

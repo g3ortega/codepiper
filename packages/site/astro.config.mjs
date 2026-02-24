@@ -14,7 +14,7 @@ export default defineConfig({
   integrations: [
     // Expressive Code MUST come before mdx()
     expressiveCode({
-      themes: ["one-dark-pro", "github-light"],
+      themes: ["one-dark-pro"],
       styleOverrides: {
         borderRadius: "0.75rem",
         codeFontFamily: '"DM Mono", "Menlo", "Monaco", monospace',
@@ -27,7 +27,21 @@ export default defineConfig({
     }),
     mdx(),
     react(),
-    sitemap(),
+    sitemap({
+      serialize(item) {
+        if (item.url.endsWith("/codepiper/")) {
+          item.priority = 1.0;
+        } else if (item.url.includes("/docs/")) {
+          item.priority = 0.8;
+        } else if (item.url.includes("/blog/")) {
+          item.priority = 0.7;
+        } else {
+          item.priority = 0.5;
+        }
+        item.lastmod = new Date().toISOString();
+        return item;
+      },
+    }),
     pagefind(),
   ],
 

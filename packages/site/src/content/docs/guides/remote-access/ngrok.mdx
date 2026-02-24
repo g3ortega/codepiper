@@ -1,0 +1,118 @@
+---
+title: ngrok
+description: Create instant HTTPS tunnels to CodePiper for quick sharing and demos.
+section: guides
+order: 4.3
+---
+
+## Overview
+
+[ngrok](https://ngrok.com) creates instant HTTPS tunnels to your local services. Good for quick sharing and demos — get a public URL in seconds.
+
+| | |
+|---|---|
+| **Best for** | Quick demos, sharing, temporary access |
+| **TLS** | Automatic |
+| **Persistent URL** | Paid only |
+| **Auth layer** | Paid only |
+
+## Install
+
+**macOS:**
+
+```bash
+brew install ngrok
+```
+
+**Linux (Debian/Ubuntu):**
+
+```bash
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list \
+  && sudo apt update \
+  && sudo apt install ngrok
+```
+
+## Authenticate
+
+Sign up at [ngrok.com](https://ngrok.com), then:
+
+```bash
+ngrok config add-authtoken YOUR_AUTHTOKEN
+```
+
+## Quick Start (Single Tunnel)
+
+```bash
+ngrok http 3000
+```
+
+This gives you an HTTPS URL like `https://abcd1234.ngrok-free.app` that proxies to `localhost:3000`. TLS is handled automatically.
+
+## Multiple Tunnels (Dashboard + WebSocket)
+
+CodePiper needs two tunnels — one for the HTTP dashboard (port 3000) and one for the WebSocket server (port 9999). Create an `ngrok.yml` configuration:
+
+```yaml
+version: 3
+agent:
+  authtoken: YOUR_AUTHTOKEN
+
+endpoints:
+  - name: web
+    upstream:
+      url: 3000
+      protocol: http1
+
+  - name: websocket
+    upstream:
+      url: 9999
+      protocol: http1
+```
+
+Start both tunnels:
+
+```bash
+ngrok start --all
+```
+
+ngrok assigns random subdomains to each tunnel. Note both URLs — you'll need to configure the dashboard to connect to the WebSocket tunnel URL instead of `localhost:9999`.
+
+## WebSocket Support
+
+ngrok supports WebSocket connections transparently. The protocol upgrade passes through automatically. Clients connect using `wss://` since ngrok terminates TLS.
+
+## Free Tier Limitations
+
+| Resource | Limit |
+|----------|-------|
+| Online endpoints | 3 |
+| HTTP requests | 20,000/month |
+| Data transfer | 1 GB/month |
+| Persistent domains | Paid only |
+
+> **Note:** On the free tier, ngrok shows a browser interstitial warning page on first visit. This doesn't affect API/WebSocket requests, only browser HTML pages. Visitors click "Visit" to proceed (cookie persists for 7 days).
+
+## Daemon Environment
+
+Set the standard proxy environment variables:
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://abcd1234.ngrok-free.app \
+codepiper daemon --web
+```
+
+## When to Use Something Else
+
+ngrok is great for quick, temporary access. Consider other methods when:
+
+- You need a persistent URL without paying
+- You want fine-grained access control
+- You're running CodePiper as a long-term service
+- Free tier limitations are too restrictive
+
+See the [Remote Access overview](/codepiper/docs/guides/remote-access/overview/) for a comparison of all methods.

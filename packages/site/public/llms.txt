@@ -1,0 +1,50 @@
+# CodePiper
+
+> Orchestrate multiple AI coding sessions from a single daemon.
+
+CodePiper is an open-source remote orchestrator for managing multiple live interactive coding-agent sessions. Built with Bun + TypeScript. Everything runs locally on your machine.
+
+## Key Features
+
+- **Multi-Session Control**: Start, stop, attach, resume, and send text to any number of concurrent sessions from CLI or web dashboard
+- **Web Dashboard**: Real-time terminal view, conversation rendering, analytics, and session management
+- **Permission Policies**: Auto-approve or deny tool use via glob pattern rules with full audit log
+- **Multi-Device Access**: Start on your laptop, monitor from your phone, respond from your iPad, attach from raw tmux
+- **Workflow Orchestration**: Chain multi-session tasks via YAML/JSON DSL with sequential, parallel, conditional, and loop steps
+- **Token Analytics**: Track token usage, model distribution, cache efficiency, and estimated cost across all sessions
+- **Git Integration**: Browse diffs, stage files, view commit history from the session's git tab
+- **Worktree Isolation**: Spawn sessions in git worktrees with auto-branch creation for parallel agents
+- **Secure & Local-First**: SQLite database, encrypted secrets, no cloud accounts, no telemetry, MFA built in
+
+## Supported Providers
+
+- **Claude Code**: Native hooks, transcript tailing, model switching
+- **Codex CLI**: tmux integration with input-preflight policy enforcement
+
+## Quick Start
+
+```bash
+npm i -g codepiper
+codepiper daemon --web
+# Open http://localhost:3000, complete onboarding
+codepiper start -p claude-code -d ~/projects/my-app
+```
+
+## Documentation
+
+- Quick Start: https://g3ortega.github.io/codepiper/docs/getting-started/quick-start/
+- Installation: https://g3ortega.github.io/codepiper/docs/getting-started/installation/
+- Architecture: https://g3ortega.github.io/codepiper/docs/concepts/architecture/
+- Sessions & Providers: https://g3ortega.github.io/codepiper/docs/concepts/sessions/
+- Permission Policies: https://g3ortega.github.io/codepiper/docs/concepts/policies/
+- Workflows: https://g3ortega.github.io/codepiper/docs/concepts/workflows/
+- Security Model: https://g3ortega.github.io/codepiper/docs/concepts/security/
+- REST API: https://g3ortega.github.io/codepiper/docs/api/rest/
+- WebSocket Protocol: https://g3ortega.github.io/codepiper/docs/api/websocket/
+- CLI Commands: https://g3ortega.github.io/codepiper/docs/api/cli/
+
+## Links
+
+- GitHub: https://github.com/g3ortega/codepiper
+- Documentation: https://g3ortega.github.io/codepiper/docs/
+- Full docs for LLMs: https://g3ortega.github.io/codepiper/llms-full.txt

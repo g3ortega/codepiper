@@ -1,0 +1,68 @@
+---
+title: SSH Tunnel
+description: Access CodePiper remotely via SSH port forwarding — the quickest method with zero server configuration.
+section: guides
+order: 4.1
+---
+
+## Overview
+
+SSH tunneling forwards CodePiper's ports through an encrypted SSH connection. No server configuration, no domain, no TLS setup. Works immediately if you can SSH into the machine running CodePiper.
+
+| | |
+|---|---|
+| **Best for** | Quick access, development, personal use |
+| **TLS** | SSH-encrypted (no browser TLS) |
+| **Persistent URL** | No (`localhost` only) |
+| **Auth layer** | SSH key or password |
+
+## Quick Start
+
+Forward both CodePiper ports through a single SSH connection:
+
+```bash
+ssh -L 3000:localhost:3000 -L 9999:localhost:9999 user@your-server
+```
+
+Then open `http://localhost:3000` locally. The tunnel is active as long as the SSH session is open.
+
+## Persistent Tunnel
+
+Add to `~/.ssh/config` to avoid typing the flags every time:
+
+```
+Host codepiper-tunnel
+  HostName your-server.example.com
+  User deploy
+  LocalForward 3000 localhost:3000
+  LocalForward 9999 localhost:9999
+  ServerAliveInterval 60
+  ServerAliveCountMax 3
+```
+
+Connect with `ssh codepiper-tunnel`. The `ServerAlive` settings keep the tunnel from dropping on idle connections.
+
+## Autossh
+
+For unattended tunnels that automatically reconnect on network disruptions:
+
+```bash
+autossh -M 0 -f -N codepiper-tunnel
+```
+
+- `-M 0` disables the monitoring port (relies on `ServerAliveInterval` instead)
+- `-f` runs in background
+- `-N` skips opening a remote shell
+
+Install autossh via `brew install autossh` (macOS) or `apt install autossh` (Debian/Ubuntu).
+
+## When to Use Something Else
+
+SSH tunneling is great for quick personal access, but consider other methods when:
+
+- You need a persistent URL others can bookmark
+- You want TLS with a valid browser certificate
+- You need to share access with non-technical users
+- You want the tunnel to survive machine reboots without configuration
+
+See the [Remote Access overview](/codepiper/docs/guides/remote-access/overview/) for a comparison of all methods.

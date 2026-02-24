@@ -45,6 +45,8 @@ const fullTitle = title === "CodePiper" ? title : `${title} | CodePiper`;
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={new URL(image, siteBase)} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="CodePiper" />
     {publishDate && <meta property="article:published_time" content={publishDate} />}
 
@@ -62,18 +64,7 @@ const fullTitle = title === "CodePiper" ? title : `${title} | CodePiper`;
 
     <!-- Theme -->
     <meta name="theme-color" content="#0e1016" />
-    <meta name="color-scheme" content="dark light" />
-
-    <!-- Theme detection (prevent flash) -->
-    <script is:inline>
-      (function () {
-        const stored = localStorage.getItem("codepiper-site-theme");
-        if (stored === "light") {
-          document.documentElement.classList.remove("dark");
-          document.documentElement.classList.add("light");
-        }
-      })();
-    </script>
+    <meta name="color-scheme" content="dark" />
 
     <!-- Sitemap -->
     <link rel="sitemap" href="/codepiper/sitemap-index.xml" />
@@ -81,6 +72,12 @@ const fullTitle = title === "CodePiper" ? title : `${title} | CodePiper`;
   </head>
 
   <body class="site-background noise min-h-screen">
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:text-sm focus:font-medium"
+    >
+      Skip to main content
+    </a>
     <slot />
 
     <!-- Scroll reveal observer -->

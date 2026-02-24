@@ -407,6 +407,50 @@ When writing or updating docs:
 - Use Mermaid for complex flows (multi-actor sequences, branching state behavior, lifecycle timelines).
 - Keep diagrams close to the section they explain, and ensure labels match real file/module names.
 
+## Site, Docs & Blog (`packages/site/`)
+
+Astro 5 static site with MDX content collections, React islands, Tailwind CSS v4, and Expressive Code.
+
+### Adding a Docs Page
+
+1. Create `packages/site/src/content/docs/<section>/<slug>.mdx`
+2. Frontmatter requires: `title`, `description`, `section` (one of: `getting-started`, `concepts`, `guides`, `api`, `contributing`), `order` (sort within section)
+3. Add the page to the sidebar in `packages/site/src/layouts/DocsLayout.astro` (the `sidebar` array)
+4. The dynamic route `pages/docs/[...slug].astro` picks it up automatically via the `docs` content collection
+
+### Adding a Blog Post
+
+1. Create `packages/site/src/content/blog/<slug>.mdx`
+2. Frontmatter requires: `title`, `description`, `publishDate` (date), `tags` (string array)
+3. Optional: `author` (defaults to "CodePiper Team"), `heroImage`, `draft` (true to hide)
+4. The dynamic route `pages/blog/[...slug].astro` and blog index pick it up automatically
+5. Restart the dev server after creating new files (Astro's glob loader doesn't hot-reload new files)
+
+### Site Commands
+
+```bash
+bun run dev:site           # Dev server at localhost:4321
+bun run build:site         # Production build
+bun run check:site         # Astro type checking
+bun run lint               # Biome lint (whole repo)
+```
+
+### Key Layouts
+
+| Layout | Purpose |
+|--------|---------|
+| `BaseLayout.astro` | HTML shell: meta tags, OG, fonts, scroll reveal |
+| `LandingLayout.astro` | Landing page: NavBar, Footer, JSON-LD schemas |
+| `DocsLayout.astro` | Docs: sidebar, TOC, prev/next, BreadcrumbList + conditional HowTo JSON-LD |
+| `BlogLayout.astro` | Blog posts: article header, tags, author, prose content |
+
+### SEO Assets
+
+- `public/robots.txt` — AI crawler directives
+- `public/llms.txt` / `llms-full.txt` — LLM-readable project summaries
+- JSON-LD: SoftwareApplication + FAQPage (landing), BreadcrumbList (docs), HowTo (quick-start)
+- Sitemap with `priority` and `lastmod` via `serialize` callback in `astro.config.mjs`
+
 ## References
 
 - [Claude Code CLI](https://code.claude.com/docs/en/cli-reference)

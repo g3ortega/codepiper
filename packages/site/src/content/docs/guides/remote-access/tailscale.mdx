@@ -1,0 +1,199 @@
+---
+title: Tailscale
+description: Access CodePiper over a private WireGuard mesh network with zero firewall configuration.
+section: guides
+order: 4.2
+---
+
+## Overview
+
+[Tailscale](https://tailscale.com) creates a private WireGuard mesh network (a "Tailnet") between your devices. Once both the server running CodePiper and your client device are on the same Tailnet, you can access CodePiper directly — both the HTTP dashboard and WebSocket port work transparently with no tunnel configuration.
+
+| | |
+|---|---|
+| **Best for** | Private access across devices, teams, zero config |
+| **TLS** | WireGuard encryption (optional HTTPS via `tailscale serve`) |
+| **Persistent URL** | Yes (MagicDNS hostname) |
+| **Auth layer** | Tailnet membership + optional ACLs |
+
+## How It Works
+
+```
+Your laptop (Tailscale) ──WireGuard──▶ Server (Tailscale)
+  browser → http://server:3000           └─ CodePiper dashboard
+  browser → ws://server:9999             └─ WebSocket server
+```
+
+Unlike tunnel-based solutions, Tailscale creates direct peer-to-peer connections. Both ports are accessible as if the server were on your local network. No ingress rules, no DNS configuration, no TLS certificates to manage.
+
+## Install
+
+**macOS:**
+
+```bash
+brew install tailscale
+```
+
+Or download from [tailscale.com/download](https://tailscale.com/download).
+
+**Linux (Debian/Ubuntu):**
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+```
+
+**Other platforms:** See [Tailscale downloads](https://tailscale.com/download) for Windows, iOS, Android, and other Linux distributions.
+
+## Setup
+
+### Step 1: Sign Up
+
+Create a Tailscale account at [login.tailscale.com](https://login.tailscale.com). You can sign in with Google, GitHub, Microsoft, or other identity providers.
+
+Free tier includes up to 100 devices and 3 users — more than enough for personal use.
+
+### Step 2: Connect the Server
+
+On the machine running CodePiper:
+
+```bash
+sudo tailscale up
+```
+
+This authenticates the device and joins your Tailnet. Note the Tailscale IP assigned (e.g., `100.x.y.z`).
+
+### Step 3: Connect Your Client
+
+On the device you want to access CodePiper from, install Tailscale and run:
+
+```bash
+sudo tailscale up
+```
+
+Or use the Tailscale app on iOS/Android/macOS.
+
+### Step 4: Access CodePiper
+
+Open your browser and navigate to:
+
+```
+http://100.x.y.z:3000
+```
+
+Replace `100.x.y.z` with your server's Tailscale IP. Both the dashboard and WebSocket connection work immediately.
+
+## MagicDNS
+
+Tailscale assigns each device a DNS name based on its hostname. Instead of remembering IP addresses:
+
+```
+http://my-server:3000
+```
+
+Or with the full domain:
+
+```
+http://my-server.tailnet-name.ts.net:3000
+```
+
+Enable MagicDNS in the [Tailscale admin console](https://login.tailscale.com/admin/dns) if it's not already active.
+
+## HTTPS with `tailscale serve`
+
+For HTTPS with valid certificates (useful for PWA installation or stricter browser security):
+
+```bash
+# Proxy HTTPS → CodePiper dashboard
+tailscale serve https / http://localhost:3000
+
+# Proxy HTTPS on port 9999 → WebSocket
+tailscale serve https:9999 / http://localhost:9999
+```
+
+This creates HTTPS endpoints with auto-provisioned Let's Encrypt certificates on your `*.ts.net` domain:
+
+```
+https://my-server.tailnet-name.ts.net      → dashboard
+wss://my-server.tailnet-name.ts.net:9999   → WebSocket
+```
+
+Access is restricted to your Tailnet — only devices on your network can reach these URLs.
+
+Check active serve configurations:
+
+```bash
+tailscale serve status
+```
+
+## Public Access with `tailscale funnel`
+
+If you need to share access with someone outside your Tailnet (e.g., a collaborator without Tailscale):
+
+```bash
+tailscale funnel https / http://localhost:3000
+```
+
+This exposes CodePiper at a public `https://my-server.tailnet-name.ts.net` URL. Use this sparingly — it bypasses the Tailnet's private network boundary.
+
+> **Recommendation:** For CodePiper, prefer Tailnet-only access via `tailscale serve` rather than public funnel. If you need to share with external users, consider [Cloudflare Zero Trust](/codepiper/docs/guides/remote-access/cloudflare-zero-trust/) instead.
+
+## Access Control (ACLs)
+
+Tailscale ACLs let you control which devices and users can reach CodePiper. Edit ACLs in the [admin console](https://login.tailscale.com/admin/acls):
+
+```json
+{
+  "acls": [
+    {
+      "action": "accept",
+      "src": ["group:developers"],
+      "dst": ["tag:codepiper:3000", "tag:codepiper:9999"]
+    }
+  ],
+  "tagOwners": {
+    "tag:codepiper": ["group:developers"]
+  }
+}
+```
+
+Tag the CodePiper server:
+
+```bash
+sudo tailscale up --advertise-tags=tag:codepiper
+```
+
+This restricts access to members of the `developers` group on ports 3000 and 9999 only.
+
+## Daemon Configuration
+
+When using Tailscale with direct IP access or MagicDNS, no special daemon environment variables are needed — the connection is raw TCP, same as localhost.
+
+When using `tailscale serve` (HTTPS proxy), set:
+
+```bash
+TRUST_PROXY_HEADERS=true \
+FORCE_SECURE_COOKIES=true \
+ALLOWED_ORIGINS=https://my-server.tailnet-name.ts.net \
+codepiper daemon --web
+```
+
+## Comparison with Other Methods
+
+| Feature | Tailscale | SSH Tunnel | Cloudflare Tunnel |
+|---------|-----------|------------|-------------------|
+| Setup complexity | Install + `tailscale up` | SSH config | Domain + cloudflared config |
+| Multi-port support | Automatic | Manual per-port | Config per hostname |
+| Mobile access | Native app | SSH client needed | Browser only |
+| Custom domain | `*.ts.net` (auto) | None | Your domain |
+| Persistent connection | Always on | Drops on disconnect | Always on |
+| Public internet access | Optional (funnel) | No | Yes |
+
+## When to Use Something Else
+
+Tailscale is ideal for private access across your own devices and small teams. Consider other methods when:
+
+- You need a public-facing URL on your own domain
+- You want identity-aware access policies (SSO, OIDC) — use [Cloudflare Zero Trust](/codepiper/docs/guides/remote-access/cloudflare-zero-trust/)
+- You're already behind a reverse proxy and just need WebSocket support — use [Nginx](/codepiper/docs/guides/remote-access/nginx/) or [Caddy](/codepiper/docs/guides/remote-access/caddy/)
+
+See the [Remote Access overview](/codepiper/docs/guides/remote-access/overview/) for a comparison of all methods.

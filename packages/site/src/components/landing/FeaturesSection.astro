@@ -91,17 +91,17 @@ const features = [
 ];
 ---
 
-<section class="py-24 px-4 reveal">
-  <div class="max-w-6xl mx-auto">
+<section class="py-24 reveal">
+  <div class="max-w-6xl mx-auto px-4">
     <h2 class="text-h2 font-bold tracking-tight text-center text-foreground">
       Everything you need.
     </h2>
     <p class="mt-4 text-lg text-muted text-center max-w-2xl mx-auto">
       Built for developers who run AI coding agents at scale.
     </p>
+  </div>
 
-    <div class="mt-16">
-      <FeaturesCarousel client:visible features={features} />
-    </div>
+  <div class="mt-16 max-w-[1200px] mx-auto px-4 lg:px-6">
+    <FeaturesCarousel client:visible features={features} />
   </div>
 </section>

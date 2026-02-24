@@ -1,0 +1,134 @@
+---
+title: "Introducing CodePiper"
+description: "An open-source daemon for orchestrating AI coding sessions across every device you own. Launch from your laptop, check from your phone, follow up from your iPad."
+author: "Gerardo Ortega"
+publishDate: 2026-02-23
+tags: ["announcement", "open-source"]
+---
+
+## The problem with AI coding sessions
+
+AI coding assistants are powerful, but they have a session problem. You start a Claude Code session on your laptop to refactor an auth module. Twenty minutes in, you need to step away. You close the lid, and your session vanishes. The agent was mid-thought, halfway through a multi-file refactor, and now it's gone.
+
+Or maybe the session survives — you left tmux running — but now you're on your phone, stuck in a waiting room, wondering if the agent finished or if it's blocked on a permission prompt. There's no way to check. No way to respond. No way to send a follow-up instruction.
+
+The fundamental issue: **AI coding sessions are tied to the terminal that spawned them.** They don't survive disconnects. They can't be accessed from other devices. There's no dashboard, no permission management, no analytics. You're flying blind.
+
+## What CodePiper does
+
+CodePiper is a daemon that owns your sessions. Instead of running `claude` directly in a terminal, you run it through CodePiper:
+
+```bash title="Start a session"
+codepiper start -p claude-code -d ~/projects/my-app
+```
+
+That session now lives inside the daemon. It runs in a tmux session, which means it persists independently of any client. You can:
+
+- **Close your laptop** — the session keeps running
+- **Check from your phone** — the web dashboard shows live terminal output
+- **Send a follow-up from your iPad** — type instructions from any browser
+- **Attach from raw tmux** — `codepiper attach <id>` for a native terminal experience
+- **SSH in from a server** — your sessions are always there
+
+The daemon is the single source of truth. Every client is just a view.
+
+## Portable by design
+
+CodePiper is built on a simple insight: **tmux is the universal integration layer.**
+
+Every AI coding tool that runs in a terminal can be managed through tmux. `tmux send-keys` is indistinguishable from physical keyboard input. `tmux capture-pane` gives you the terminal state. The AI agent never knows (or cares) that it's being orchestrated.
+
+This means CodePiper works with any terminal-based AI tool without requiring special APIs or plugins. Claude Code gets deeper integration through its native hooks system — structured events, transcript tailing, model switching — but even without hooks, the core experience works.
+
+Currently supported providers:
+
+| Provider | Integration Level | Features |
+|----------|------------------|----------|
+| Claude Code | Full | Hooks, transcripts, model switching, policy auto-handling |
+| Codex CLI | Standard | Session management, terminal access, input policy |
+
+The provider interface is open. Adding support for a new AI coding tool means implementing five methods: `startSession`, `sendText`, `sendKeys`, `stopSession`, and `onEvent`.
+
+## What you get
+
+### Permission policies
+
+Define rules for what your AI agents can do. Allow file reads, deny destructive shell commands, require manual approval for git operations. Every decision is logged in an audit trail.
+
+```bash title="Create a policy"
+codepiper policy create --action allow --tool "Read" --reason "File reads are safe"
+codepiper policy create --action deny --tool "Bash" --args '{"command":"rm *"}' --reason "No mass deletes"
+```
+
+For Claude Code sessions, policies are enforced automatically through hooks. The daemon intercepts permission requests and responds based on your rules — no manual clicking required.
+
+### Multi-session workflows
+
+Chain sessions together with a YAML DSL. Run a test suite, branch based on results, spawn parallel refactoring sessions, collect outputs.
+
+```yaml title="workflow.yaml"
+name: test-and-fix
+steps:
+  - type: session
+    id: run-tests
+    provider: claude-code
+    prompt: "Run the test suite and report failures"
+    wait: idle_prompt
+
+  - type: if
+    condition: "${run-tests.result} contains 'FAIL'"
+    then:
+      - type: session
+        id: fix-tests
+        provider: claude-code
+        prompt: "Fix the failing tests: ${run-tests.result}"
+```
+
+### Token analytics
+
+Track exactly how many tokens each session consumes. See model distribution, cache hit rates, tool usage, and estimated costs. All parsed from Claude Code transcripts with zero extra configuration.
+
+### Web dashboard
+
+A React SPA that runs alongside the daemon. Sessions list, live terminal view, analytics charts, policy management, workflow execution. Install it as a PWA on your phone for push notifications when sessions finish or need attention.
+
+### Security by default
+
+- Password authentication with mandatory TOTP MFA
+- AES-256-GCM encryption for stored secrets
+- Unix socket transport for local CLI access
+- Full audit trail for policy decisions
+- API key scrubbing for subscription billing
+
+## Getting started
+
+```bash title="Install and launch"
+# Install
+npm i -g codepiper
+
+# Verify prerequisites
+codepiper doctor
+
+# Start the daemon with web dashboard
+codepiper daemon --web
+
+# Create your first session
+codepiper start -p claude-code -d ~/projects/my-app
+```
+
+The entire setup takes about two minutes. The daemon prints a bootstrap password on first run — enter it in the web dashboard to set up your permanent password and MFA.
+
+Check the [quick start guide](/codepiper/docs/getting-started/quick-start/) for the full walkthrough, or browse the [documentation](/codepiper/docs/) for deep dives into every feature.
+
+## What's next
+
+CodePiper is open source and actively developed. Here's what's on the roadmap:
+
+- **More providers** — Cursor, Aider, and other terminal-based AI tools
+- **Team features** — shared sessions, collaborative policy sets
+- **Plugin system** — extend the daemon with custom event handlers
+- **Improved mobile experience** — better touch interactions and offline support
+
+The project is built with Bun and TypeScript. Contributions are welcome — check the [development guide](/codepiper/docs/contributing/development/) to get started, or open an issue on [GitHub](https://github.com/g3ortega/codepiper).
+
+Your AI coding sessions deserve better than a terminal tab. Give them a daemon.

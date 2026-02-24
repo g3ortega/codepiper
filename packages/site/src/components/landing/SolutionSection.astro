@@ -59,7 +59,7 @@ const pillars = [
           p.bgColor,
           `reveal stagger-${i + 1}`,
         ]}>
-          <div class:list={["w-12 h-12 rounded-lg flex items-center justify-center mx-auto", p.iconBg, p.iconText]}>
+          <div class:list={["w-12 h-12 rounded-lg flex items-center justify-center mx-auto", p.iconBg, p.iconText]} aria-hidden="true">
             <Fragment set:html={p.icon} />
           </div>
           <h3 class="mt-4 font-semibold text-foreground">{p.title}</h3>
